@@ -215,9 +215,9 @@ def _add_device_code(b: _Builder, record: dict, record_dir: str, llvm_bin: str) 
                 (fid, innermost, pos, block.label, block.instructions,
                  min(lines) if lines else None, max(lines) if lines else None,
                  json.dumps(block.lines), json.dumps(block.callees)))
-        for callee in fn.callees:
+        for callee, site in fn.calls:
             if callee in ids:
-                b.add_edge(fid, ids[callee], "ir")
+                b.add_edge(fid, ids[callee], "ir", *(site or (None, None)))
     return ids[kernel_name], "\n".join(ir_texts)
 
 

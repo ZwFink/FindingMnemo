@@ -26,10 +26,13 @@ def _mneme_config(key: str) -> str:
 
 
 def _default_llvm_bin() -> str:
+    """Prefer the LLVM that Mneme was built with, which matches the recorded IR."""
     if os.environ.get("FINDINGMNEMO_LLVM_BIN"):
         return os.environ["FINDINGMNEMO_LLVM_BIN"]
-    rocm = os.environ.get("ROCM_PATH", "/opt/rocm")
-    return os.path.join(rocm, "llvm", "bin")
+    try:
+        return os.path.join(_mneme_config("llvmdir"), "bin")
+    except (OSError, subprocess.CalledProcessError):
+        return os.path.join(os.environ.get("ROCM_PATH", "/opt/rocm"), "llvm", "bin")
 
 
 def record(args) -> int:
@@ -105,8 +108,8 @@ def main(argv=None) -> int:
     exp.add_argument("--include-runtime", action="store_true",
                      help="keep HIP runtime helper functions in the graph")
     exp.add_argument("--llvm-bin", default=_default_llvm_bin(),
-                     help="directory with llvm-dis, opt, llvm-symbolizer, llvm-objdump, "
-                          "clang-offload-bundler (default: $ROCM_PATH/llvm/bin)")
+                     help="directory with llvm-dis, opt, llvm-symbolizer, llvm-objdump and "
+                          "clang-offload-bundler (default: Mneme's LLVM)")
     exp.set_defaults(func=export_cmd)
 
     args = parser.parse_args(argv)

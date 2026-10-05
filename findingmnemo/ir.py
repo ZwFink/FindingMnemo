@@ -25,7 +25,12 @@ class BasicBlock:
     instructions: int = 0
     # Source lines as (file, line) pairs attributed to the block's instructions.
     lines: List[Tuple[str, int]] = field(default_factory=list)
-    callees: List[str] = field(default_factory=list)
+    # Calls as (callee, call site) pairs; the call site is None without debug info.
+    calls: List[Tuple[str, Optional[Tuple[str, int]]]] = field(default_factory=list)
+
+    @property
+    def callees(self) -> List[str]:
+        return [callee for callee, _ in self.calls]
 
 
 @dataclass
@@ -46,12 +51,12 @@ class Function:
     loops: List[Loop] = field(default_factory=list)
 
     @property
-    def callees(self) -> List[str]:
+    def calls(self) -> List[Tuple[str, Optional[Tuple[str, int]]]]:
         seen = []
         for b in self.blocks:
-            for c in b.callees:
-                if c not in seen:
-                    seen.append(c)
+            for call in b.calls:
+                if call not in seen:
+                    seen.append(call)
         return seen
 
 
@@ -149,16 +154,15 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
         if not stripped or stripped.startswith(";"):
             continue
         block.instructions += 1
+        dbg = _DBG_REF.search(stripped)
+        loc = debug.location(int(dbg.group(1))) if dbg else None
+        if loc and loc not in block.lines:
+            block.lines.append(loc)
         call = _CALL.search(stripped)
         if call:
             callee = _unquote(call.group(1))
             if not callee.startswith("llvm."):
-                block.callees.append(callee)
-        dbg = _DBG_REF.search(stripped)
-        if dbg:
-            loc = debug.location(int(dbg.group(1)))
-            if loc and loc not in block.lines:
-                block.lines.append(loc)
+                block.calls.append((callee, loc))
 
     return functions
 
