@@ -55,16 +55,11 @@ def record(args) -> int:
             "cwd": os.getcwd(),
             "hostname": socket.gethostname(),
             "recorded_at": datetime.datetime.now().isoformat(timespec="seconds"),
-            "mneme": not args.no_mneme,
         }, f, indent=2)
 
     env = os.environ.copy()
     env["FINDINGMNEMO_OUT"] = stack_dir
     env["FINDINGMNEMO_SHIM"] = shim
-    if args.no_mneme:
-        env["LD_PRELOAD"] = shim + (":" + env["LD_PRELOAD"] if env.get("LD_PRELOAD") else "")
-        return subprocess.run(cmd, env=env).returncode
-
     # The preload wrapper shell also gets Mneme's record library preloaded,
     # and that library needs Mneme's runtime library on the search path.
     libdir = _mneme_config("libdir")
@@ -91,8 +86,6 @@ def main(argv=None) -> int:
     rec.add_argument("-o", "--output", required=True, help="run directory to create")
     rec.add_argument("--name", help="program name stored in the database (default: executable name)")
     rec.add_argument("--shim", default=DEFAULT_SHIM, help="path to libfindingmnemo_stacks.so")
-    rec.add_argument("--no-mneme", action="store_true",
-                     help="capture launch stacks only, without recording kernels")
     rec.add_argument("--mneme-arg", dest="mneme_args", action="append", default=[],
                      help="extra argument for `mneme record` (repeatable)")
     rec.add_argument("cmd", nargs=argparse.REMAINDER, help="-- application [arguments]")

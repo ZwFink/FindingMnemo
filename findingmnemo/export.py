@@ -22,6 +22,8 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from mneme.recorded_execution import KernelSource, RecordedExecution
+
 from . import ir, isa, stacks
 
 FORMAT = "findingmnemo-db/1"
@@ -33,8 +35,8 @@ class _Kernel:
     record: Optional[dict] = None
     record_path: Optional[str] = None
     module_ir: Optional[str] = None
-    # mneme.recorded_execution.KernelSource, read from Mneme's copy of the file.
-    source: Optional[object] = None
+    # Read from Mneme's copy of the file.
+    source: Optional[KernelSource] = None
 
 
 @dataclass
@@ -110,7 +112,7 @@ class _Program:
         self.dir = ""
 
         record_dir = os.path.join(run_dir, "record-db")
-        records = _load_records(record_dir) if os.path.isdir(record_dir) else []
+        records = _load_records(record_dir)
         self.launch_paths = stacks.load_launch_paths(os.path.join(run_dir, "stacks"), llvm_bin)
         kernel_names = sorted({r["KernelName"] for _, r in records}
                               | {p.kernel for p in self.launch_paths})
@@ -180,8 +182,6 @@ class _Program:
                                record.get("SourceFile") or code.file, record.get("SourceLine"))
         if record.get("SourceLine"):
             kernel.line, kernel.end_line = record["SourceLine"], record.get("SourceEndLine")
-        # Imported here so that runs recorded with --no-mneme export without Mneme.
-        from mneme.recorded_execution import RecordedExecution
         source = RecordedExecution.from_json(record_path).kernel_source()
         if source:
             self.source_copies[kernel.file] = source.file
@@ -191,7 +191,7 @@ class _Program:
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
                                code.file)
         if kernel.kernel is None:
-            # Launched but not recorded by Mneme, e.g. with --no-mneme.
+            # Launched but not recorded by Mneme, e.g. from a library not built for Mneme.
             kernel.kernel = _Kernel(code)
         frames = [self.function("host", f.function, f.function, f.function, f.file, f.start_line)
                   for f in launch.frames]
@@ -464,7 +464,6 @@ def _write_program(prog: _Program, out: str) -> None:
         "hostname": prog.run.get("hostname"),
         "recorded_at": prog.run.get("recorded_at"),
         "gpu_arch": prog.gpu_arch,
-        "mneme": prog.run.get("mneme", True),
         "run_dir": prog.run_dir,
         "kernels": [k.path for k in kernels],
     })

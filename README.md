@@ -48,8 +48,8 @@ to a kernel launch), device edges are *static* (from the recorded IR).
   `-g`: it gives host functions their definition line and host lambdas a name,
   and leaves the device ISA and the recorded IR unchanged (checked on
   XSBench). `-gline-tables-only`, which `add_mneme()` uses, also works.
-- Python 3.8+. Exporting runs recorded with Mneme imports Mneme's Python
-  package (`mneme.recorded_execution`); everything else is the standard library.
+- Python 3.8+ with Mneme's Python package (`mneme.recorded_execution`) on
+  `PYTHONPATH`; everything else is the standard library.
 
 ## Quick start
 
@@ -69,12 +69,8 @@ one database; each becomes a separate program directory:
 findingmnemo export runs/app-small runs/app-large -o app-db
 ```
 
-Useful `record` options:
-
-- `--no-mneme` captures launch stacks only, for applications Mneme cannot
-  record. Kernels then have ISA and call paths but no IR or source span.
-- `--mneme-arg=<arg>` passes arguments to `mneme record`, for example
-  `--mneme-arg=-vass --mneme-arg=16` for a 16 GB virtual address space.
+`--mneme-arg=<arg>` passes arguments to `mneme record`, for example
+`--mneme-arg=-vass --mneme-arg=16` for a 16 GB virtual address space.
 
 ## Examples
 
@@ -207,9 +203,10 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   `__cudaRegisterFunction` and `cuobjdump` instead of `clang-offload-bundler`.
 - **ISA comes from the main executable.** Kernels in shared libraries get call
   paths and IR but no ISA.
-- **Kernels recorded with `--no-mneme`** have no IR, source span or loops. Their
-  file comes from the code object's line table, and `entry_line` is the line
-  of their first instruction.
+- **Kernels that Mneme did not record**, such as those from libraries not
+  built for Mneme, have no IR, source span or loops. Their file comes from the
+  code object's line table, and `entry_line` is the line of their first
+  instruction.
 - **Host lambdas have no scope or line** with `-gline-tables-only`: the
   debug info names their body `operator()`, and several host lambdas in one
   file end up as `operator()`, `operator()~2`, and so on. Build with `-g`.
