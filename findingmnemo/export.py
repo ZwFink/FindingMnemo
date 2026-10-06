@@ -1,137 +1,72 @@
-"""Build the hierarchical program database from a FindingMnemo run directory.
+"""Build the hierarchical program database from FindingMnemo run directories.
 
 A run directory holds ``run.json`` (what was executed), ``record-db/`` (the
-Mneme recording) and ``stacks/`` (launch stacks from the shim).
+Mneme recording) and ``stacks/`` (launch stacks from the shim). The database is
+a directory tree that mirrors the program hierarchy, so it can be browsed with
+``ls``, ``tree`` and ``jq``::
+
+    <db>/index.json, graph.json
+    <db>/<program>/program.json, launches.json
+    <db>/<program>/files/<source file>/<function>/function.json, ir.ll, ...
+    <db>/<program>/runtime/...   HIP runtime helpers called by device code
 """
 
+import datetime
 import glob
 import hashlib
 import json
 import os
-import socket
-import sqlite3
+import re
+import shutil
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from . import ir, isa, stacks
 
-SCHEMA = """
-CREATE TABLE programs (
-  id INTEGER PRIMARY KEY,
-  name TEXT, executable TEXT, arguments TEXT, hostname TEXT, gpu_arch TEXT,
-  run_dir TEXT, recorded_at TEXT
-);
-CREATE TABLE source_files (
-  id INTEGER PRIMARY KEY,
-  program_id INTEGER REFERENCES programs(id),
-  path TEXT,
-  UNIQUE(program_id, path)
-);
--- kind is 'host', 'kernel' or 'device'. Host functions come from the launch
--- stacks; kernels and device functions come from the recorded LLVM IR.
-CREATE TABLE functions (
-  id INTEGER PRIMARY KEY,
-  program_id INTEGER REFERENCES programs(id),
-  kind TEXT, name TEXT, display_name TEXT,
-  file_id INTEGER REFERENCES source_files(id), line INTEGER,
-  -- 1 for HIP/ROCm runtime helpers such as __ockl_get_local_id.
-  is_runtime INTEGER,
-  UNIQUE(program_id, kind, name)
-);
--- origin is 'stack' for host calls observed on the way to a launch, 'launch'
--- for a host function launching a kernel, and 'ir' for static device calls.
--- launches counts the kernel launches that went through a stack or launch
--- edge; it is NULL for static edges.
-CREATE TABLE call_edges (
-  id INTEGER PRIMARY KEY,
-  program_id INTEGER REFERENCES programs(id),
-  caller_id INTEGER REFERENCES functions(id),
-  callee_id INTEGER REFERENCES functions(id),
-  origin TEXT, call_file TEXT, call_line INTEGER, launches INTEGER,
-  UNIQUE(caller_id, callee_id, origin, call_file, call_line)
-);
-CREATE TABLE kernels (
-  id INTEGER PRIMARY KEY,
-  function_id INTEGER REFERENCES functions(id),
-  mangled_name TEXT, demangled_name TEXT, static_hash TEXT,
-  source_file TEXT, source_line INTEGER, source_end_line INTEGER,
-  source_md5 TEXT, source_text TEXT,
-  ir_files TEXT, ir_text TEXT,
-  isa_text TEXT, isa_instructions INTEGER,
-  mneme_record TEXT
-);
--- One row per launch configuration Mneme recorded (capped per kernel by
--- mneme record's --per-kernel-max-recordings).
-CREATE TABLE kernel_instances (
-  id INTEGER PRIMARY KEY,
-  kernel_id INTEGER REFERENCES kernels(id),
-  dynamic_hash TEXT,
-  grid_x INTEGER, grid_y INTEGER, grid_z INTEGER,
-  block_x INTEGER, block_y INTEGER, block_z INTEGER,
-  shared_mem INTEGER, occurrences INTEGER,
-  prologue TEXT, epilogue TEXT
-);
--- Every launch, aggregated by host call path and launch configuration.
-CREATE TABLE launch_paths (
-  id INTEGER PRIMARY KEY,
-  kernel_id INTEGER REFERENCES kernels(id),
-  frames TEXT,
-  grid_x INTEGER, grid_y INTEGER, grid_z INTEGER,
-  block_x INTEGER, block_y INTEGER, block_z INTEGER,
-  shared_mem INTEGER, count INTEGER
-);
-CREATE TABLE loops (
-  id INTEGER PRIMARY KEY,
-  function_id INTEGER REFERENCES functions(id),
-  parent_id INTEGER REFERENCES loops(id),
-  depth INTEGER, header TEXT
-);
-CREATE TABLE basic_blocks (
-  id INTEGER PRIMARY KEY,
-  function_id INTEGER REFERENCES functions(id),
-  loop_id INTEGER REFERENCES loops(id),
-  position INTEGER, label TEXT, instructions INTEGER,
-  first_line INTEGER, last_line INTEGER,
-  source_lines TEXT, callees TEXT
-);
-"""
+FORMAT = "findingmnemo-db/1"
 
 
-class _Builder:
-    def __init__(self, conn: sqlite3.Connection, program_id: int):
-        self.conn = conn
-        self.program_id = program_id
-        self.files: Dict[str, int] = {}
-        self.functions: Dict[Tuple[str, str], int] = {}
+@dataclass
+class _Kernel:
+    code: isa.KernelCode
+    record: Optional[dict] = None
+    record_path: Optional[str] = None
+    module_ir: Optional[str] = None
+    source: Optional[str] = None
 
-    def file_id(self, path: Optional[str]) -> Optional[int]:
-        if not path:
-            return None
-        path = os.path.normpath(path)
-        if path not in self.files:
-            cur = self.conn.execute(
-                "INSERT INTO source_files(program_id, path) VALUES (?, ?)",
-                (self.program_id, path))
-            self.files[path] = cur.lastrowid
-        return self.files[path]
 
-    def function_id(self, kind: str, name: str, display_name=None, file=None, line=None) -> int:
-        key = (kind, name)
-        if key not in self.functions:
-            cur = self.conn.execute(
-                "INSERT INTO functions(program_id, kind, name, display_name, file_id, line, is_runtime)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (self.program_id, kind, name, display_name or name, self.file_id(file), line,
-                 int(_is_runtime_function(name, file))))
-            self.functions[key] = cur.lastrowid
-        return self.functions[key]
+@dataclass
+class _Function:
+    # host, kernel or device.
+    kind: str
+    # Linkage name for device code; host functions only have the demangled
+    # name the symbolizer reports.
+    name: str
+    display_name: str
+    file: Optional[str]
+    line: Optional[int]
+    end_line: Optional[int] = None
+    ir_fn: Optional[ir.Function] = None
+    kernel: Optional[_Kernel] = None
+    # Directory relative to the program directory, assigned before writing.
+    path: str = ""
 
-    def add_edge(self, caller: int, callee: int, origin: str, file=None, line=None, launches=None):
-        self.conn.execute(
-            "INSERT INTO call_edges(program_id, caller_id, callee_id, origin, call_file, call_line, launches)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)"
-            " ON CONFLICT(caller_id, callee_id, origin, call_file, call_line)"
-            " DO UPDATE SET launches = launches + excluded.launches",
-            (self.program_id, caller, callee, origin, file, line, launches))
+    @property
+    def is_runtime(self) -> bool:
+        return _is_runtime_function(self.name, self.file)
+
+
+@dataclass
+class _Edge:
+    caller: _Function
+    callee: _Function
+    # 'stack' for host calls observed on the way to a launch, 'launch' for a
+    # host function launching a kernel, and 'ir' for static device calls.
+    origin: str
+    file: Optional[str]
+    line: Optional[int]
+    # Kernel launches that went through a dynamic edge; None for static edges.
+    launches: Optional[int]
 
 
 _RUNTIME_PREFIXES = ("__ockl_", "__ocml_", "__hip_", "_ZN24__hip_builtin", "_ZN25__hip_builtin",
@@ -161,225 +96,406 @@ def _kernel_source(record: dict, record_dir: str) -> Optional[str]:
         if record.get("SourceMD5") and hashlib.md5(data).hexdigest() != record["SourceMD5"]:
             continue
         lines = data.decode(errors="replace").splitlines()
-        return "\n".join(lines[record["SourceLine"] - 1:record["SourceEndLine"]])
+        return "\n".join(lines[record["SourceLine"] - 1:record["SourceEndLine"]]) + "\n"
     return None
 
 
-def _load_records(record_dir: str) -> List[dict]:
+def _load_records(record_dir: str) -> List[Tuple[str, dict]]:
     records = []
     for path in sorted(glob.glob(os.path.join(record_dir, "*.json"))):
         with open(path) as f:
             record = json.load(f)
         if "KernelName" in record:
-            records.append(record)
+            records.append((path, record))
     return records
 
 
-def _add_device_code(b: _Builder, record: dict, record_dir: str, llvm_bin: str) -> Tuple[int, str]:
-    """Insert the kernel's device functions, loops and blocks from its IR."""
-    ir_texts, functions = [], {}
-    for module in record["Modules"]:
-        text, parsed = ir.analyze_bitcode(os.path.join(record_dir, module), llvm_bin)
-        ir_texts.append(text)
-        functions.update(parsed)
+class _Program:
+    """One run directory, joined into functions and call edges."""
 
-    kernel_name = record["KernelName"]
-    ids = {}
-    for fn in functions.values():
-        kind = "kernel" if fn.name == kernel_name else "device"
-        display = record["DemangledName"] if kind == "kernel" else fn.display_name
-        ids[fn.name] = b.function_id(kind, fn.name, display, fn.file, fn.line)
+    def __init__(self, run_dir: str, llvm_bin: str):
+        self.run_dir = run_dir
+        with open(os.path.join(run_dir, "run.json")) as f:
+            self.run = json.load(f)
+        self.functions: Dict[Tuple[str, str], _Function] = {}
+        self.edges: Dict[tuple, _Edge] = {}
+        self.dir = ""
 
-    for fn in functions.values():
-        fid = ids[fn.name]
-        if b.conn.execute("SELECT 1 FROM basic_blocks WHERE function_id = ?", (fid,)).fetchone():
-            continue  # Already inserted from another kernel's module.
-        loop_ids = []
-        for loop in fn.loops:
-            parent = loop_ids[loop.parent] if loop.parent is not None else None
-            cur = b.conn.execute(
-                "INSERT INTO loops(function_id, parent_id, depth, header) VALUES (?, ?, ?, ?)",
-                (fid, parent, loop.depth, loop.header))
-            loop_ids.append(cur.lastrowid)
-        for pos, block in enumerate(fn.blocks):
-            # print<loops> lists outer loops before inner ones, so the last
-            # loop containing the block is the innermost.
-            innermost = None
-            for i, loop in enumerate(fn.loops):
-                if block.label in loop.blocks:
-                    innermost = loop_ids[i]
-            lines = [ln for _, ln in block.lines]
-            b.conn.execute(
-                "INSERT INTO basic_blocks(function_id, loop_id, position, label, instructions,"
-                " first_line, last_line, source_lines, callees) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (fid, innermost, pos, block.label, block.instructions,
-                 min(lines) if lines else None, max(lines) if lines else None,
-                 json.dumps(block.lines), json.dumps(block.callees)))
-        for callee, site in fn.calls:
-            if callee in ids:
-                b.add_edge(fid, ids[callee], "ir", *(site or (None, None)))
-    return ids[kernel_name], "\n".join(ir_texts)
+        record_dir = os.path.join(run_dir, "record-db")
+        records = _load_records(record_dir) if os.path.isdir(record_dir) else []
+        self.launch_paths = stacks.load_launch_paths(os.path.join(run_dir, "stacks"), llvm_bin)
+        kernel_names = sorted({r["KernelName"] for _, r in records}
+                              | {p.kernel for p in self.launch_paths})
+        self.gpu_arch, code = isa.disassemble_kernels(self.run["executable"], kernel_names, llvm_bin)
 
+        for path, record in records:
+            self._add_recorded_kernel(record, path, record_dir, code[record["KernelName"]], llvm_bin)
+        for launch in self.launch_paths:
+            self._add_launch(launch, code[launch.kernel])
 
-def build(run_dirs: List[str], db_path: str, llvm_bin: str) -> str:
-    """Create ``db_path`` with one program per run directory."""
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    conn = sqlite3.connect(db_path)
-    conn.executescript(SCHEMA)
-    for run_dir in run_dirs:
-        _add_run(conn, os.path.abspath(run_dir), llvm_bin)
-    conn.commit()
-    conn.close()
-    return db_path
+    @property
+    def name(self) -> str:
+        return self.run.get("name") or os.path.basename(self.run["executable"])
 
+    def function(self, kind: str, name: str, display_name=None, file=None, line=None) -> _Function:
+        key = (kind, name)
+        if key not in self.functions:
+            self.functions[key] = _Function(kind, name, display_name or name,
+                                            os.path.normpath(file) if file else None, line)
+        return self.functions[key]
 
-def _add_run(conn: sqlite3.Connection, run_dir: str, llvm_bin: str):
-    with open(os.path.join(run_dir, "run.json")) as f:
-        run = json.load(f)
-    record_dir = os.path.join(run_dir, "record-db")
-    records = _load_records(record_dir) if os.path.isdir(record_dir) else []
-    launch_paths = stacks.load_launch_paths(os.path.join(run_dir, "stacks"), llvm_bin)
+    def add_edge(self, caller: _Function, callee: _Function, origin: str,
+                 file=None, line=None, launches=None):
+        key = (caller.kind, caller.name, callee.kind, callee.name, origin, file, line)
+        edge = self.edges.get(key)
+        if edge is None:
+            self.edges[key] = _Edge(caller, callee, origin, file, line, launches)
+        elif launches is not None:
+            edge.launches += launches
 
-    kernel_names = sorted({r["KernelName"] for r in records} | {p.kernel for p in launch_paths})
-    gpu_arch, isa_texts = isa.disassemble_kernels(run["executable"], kernel_names, llvm_bin)
+    def _add_recorded_kernel(self, record: dict, record_path: str, record_dir: str,
+                             code: isa.KernelCode, llvm_bin: str):
+        ir_texts, parsed = [], {}
+        for module in record["Modules"]:
+            text, functions = ir.analyze_bitcode(os.path.join(record_dir, module), llvm_bin)
+            ir_texts.append(text)
+            parsed.update(functions)
 
-    cur = conn.execute(
-        "INSERT INTO programs(name, executable, arguments, hostname, gpu_arch, run_dir, recorded_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (run.get("name") or os.path.basename(run["executable"]), run["executable"],
-         json.dumps(run["arguments"]), run.get("hostname", socket.gethostname()),
-         gpu_arch, run_dir, run.get("recorded_at")))
-    b = _Builder(conn, cur.lastrowid)
+        name = record["KernelName"]
+        for fn in parsed.values():
+            kind = "kernel" if fn.name == name else "device"
+            display = record["DemangledName"] if kind == "kernel" else fn.display_name
+            node = self.function(kind, fn.name, display, fn.file, fn.line)
+            # Device functions shared by several kernels appear in each module.
+            if node.ir_fn is None:
+                node.ir_fn = fn
+        for fn in parsed.values():
+            caller = self.functions[("kernel" if fn.name == name else "device", fn.name)]
+            for callee_name, site in fn.calls:
+                callee = (self.functions.get(("device", callee_name))
+                          or self.functions.get(("kernel", callee_name)))
+                if callee:
+                    self.add_edge(caller, callee, "ir", *(site or (None, None)))
 
-    kernel_ids: Dict[str, int] = {}
-    for record in records:
-        function_id, ir_text = _add_device_code(b, record, record_dir, llvm_bin)
-        isa_text = isa_texts.get(record["KernelName"])
-        cur = conn.execute(
-            "INSERT INTO kernels(function_id, mangled_name, demangled_name, static_hash,"
-            " source_file, source_line, source_end_line, source_md5, source_text,"
-            " ir_files, ir_text, isa_text, isa_instructions, mneme_record)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (function_id, record["KernelName"], record["DemangledName"], str(record["StaticHash"]),
-             record.get("SourceFile"), record.get("SourceLine"), record.get("SourceEndLine"),
-             record.get("SourceMD5"), _kernel_source(record, record_dir),
-             json.dumps([os.path.join(record_dir, m) for m in record["Modules"]]), ir_text,
-             isa_text, isa.instruction_count(isa_text) if isa_text else None,
-             json.dumps(record)))
-        kernel_ids[record["KernelName"]] = cur.lastrowid
-        for dyn_hash, inst in record.get("instances", {}).items():
-            g, bl = inst["GridDims"], inst["BlockDims"]
-            conn.execute(
-                "INSERT INTO kernel_instances(kernel_id, dynamic_hash, grid_x, grid_y, grid_z,"
-                " block_x, block_y, block_z, shared_mem, occurrences, prologue, epilogue)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (kernel_ids[record["KernelName"]], dyn_hash, g["x"], g["y"], g["z"],
-                 bl["x"], bl["y"], bl["z"], inst["SharedMem"], inst["Occurrences"],
-                 os.path.join(record_dir, inst["Prologue"]),
-                 os.path.join(record_dir, inst["Epilogue"])))
+        kernel = self.function("kernel", name, record["DemangledName"],
+                               record.get("SourceFile") or code.file, record.get("SourceLine"))
+        if record.get("SourceLine"):
+            kernel.line, kernel.end_line = record["SourceLine"], record.get("SourceEndLine")
+        kernel.kernel = _Kernel(code, record, record_path, "\n".join(ir_texts),
+                                _kernel_source(record, record_dir))
 
-    for path in launch_paths:
-        if path.kernel not in kernel_ids:
-            # Launched but not recorded by Mneme, e.g. a library kernel.
-            fid = b.function_id("kernel", path.kernel)
-            cur = conn.execute(
-                "INSERT INTO kernels(function_id, mangled_name, isa_text, isa_instructions)"
-                " VALUES (?, ?, ?, ?)",
-                (fid, path.kernel, isa_texts.get(path.kernel),
-                 isa.instruction_count(isa_texts[path.kernel]) if isa_texts.get(path.kernel) else None))
-            kernel_ids[path.kernel] = cur.lastrowid
-        kernel_fid = conn.execute("SELECT function_id FROM kernels WHERE id = ?",
-                                  (kernel_ids[path.kernel],)).fetchone()[0]
-        conn.execute(
-            "INSERT INTO launch_paths(kernel_id, frames, grid_x, grid_y, grid_z,"
-            " block_x, block_y, block_z, shared_mem, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (kernel_ids[path.kernel],
-             json.dumps([{"function": f.function, "file": f.file, "line": f.line} for f in path.frames]),
-             *path.grid, *path.block, path.shared_mem, path.count))
-
-        frame_ids = [b.function_id("host", f.function, f.function, f.file, f.start_line)
-                     for f in path.frames]
-        for i in range(len(frame_ids) - 1):
-            site = path.frames[i]
-            b.add_edge(frame_ids[i], frame_ids[i + 1], "stack", site.file, site.line, path.count)
-        if frame_ids:
-            site = path.frames[-1]
-            b.add_edge(frame_ids[-1], kernel_fid, "launch", site.file, site.line, path.count)
+    def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
+        kernel = self.function("kernel", launch.kernel, code.name, code.file)
+        if kernel.kernel is None:
+            # Launched but not recorded by Mneme, e.g. with --no-mneme.
+            kernel.kernel = _Kernel(code)
+        frames = [self.function("host", f.function, f.function, f.file, f.start_line)
+                  for f in launch.frames]
+        for i in range(len(frames) - 1):
+            site = launch.frames[i]
+            self.add_edge(frames[i], frames[i + 1], "stack", site.file, site.line, launch.count)
+        if frames:
+            site = launch.frames[-1]
+            self.add_edge(frames[-1], kernel, "launch", site.file, site.line, launch.count)
 
 
-def export_graph(db_path: str, graph_path: str, include_runtime: bool = False) -> str:
-    """Write the database as a nodes/edges JSON graph.
+def _short_name(name: str) -> str:
+    """Drop the parameter list and return type from a demangled name."""
+    name = re.sub(r"(\s+(const|volatile|&|&&))+$", "", name)
+    if name.endswith(")"):
+        depth = 0
+        for i in range(len(name) - 1, -1, -1):
+            depth += {")": 1, "(": -1}.get(name[i], 0)
+            if depth == 0:
+                name = name[:i] if i else name
+                break
+    depth, start = 0, 0
+    for i, c in enumerate(name):
+        depth += {"<": 1, ">": -1}.get(c, 0)
+        if c == " " and depth == 0:
+            start = i + 1
+    return name[start:] or name
 
-    Containment edges form the hierarchy program -> file -> function -> loop ->
-    basic block; call and launch edges cross it. HIP runtime helpers are left
-    out unless ``include_runtime`` is set.
+
+def _safe_name(name: str) -> str:
+    name = re.sub(r"[^A-Za-z0-9._+-]+", "_", name.replace("::", ".")).rstrip("_")[:120]
+    return name if name and not name.startswith(".") else "_" + name
+
+
+def _unique(path: str, used: set) -> str:
+    candidate, n = path, 1
+    while candidate in used:
+        n += 1
+        candidate = f"{path}~{n}"
+    used.add(candidate)
+    return candidate
+
+
+def _assign_paths(prog: _Program) -> Dict[Tuple[str, Optional[str]], str]:
+    file_dirs: Dict[Tuple[str, Optional[str]], str] = {}
+    used: set = set()
+    order = sorted(prog.functions.values(), key=lambda f: (f.file or "", f.line or 0, f.name))
+    for fn in order:
+        key = ("runtime" if fn.is_runtime else "files", fn.file)
+        if key not in file_dirs:
+            base = os.path.basename(fn.file) if fn.file else "_unknown"
+            file_dirs[key] = _unique(f"{key[0]}/{_safe_name(base)}", used)
+        path = f"{file_dirs[key]}/{_safe_name(_short_name(fn.display_name))}"
+        if path in used:
+            # Overloads share a short name; the symbol tells them apart.
+            path = f"{file_dirs[key]}/{_safe_name(fn.name)}"
+        fn.path = _unique(path, used)
+    return file_dirs
+
+
+def _lines(block: ir.BasicBlock, file: Optional[str]) -> Optional[List[int]]:
+    own = [ln for f, ln in block.lines if f == file] or [ln for _, ln in block.lines]
+    return [min(own), max(own)] if own else None
+
+
+def _body(prog: _Program, fn: ir.Function) -> list:
+    """Nest the function's basic blocks in its loops, in IR order."""
+    loops = [{"loop": loop.header, "depth": loop.depth, "body": []} for loop in fn.loops]
+    placed, top = set(), []
+    for block in fn.blocks:
+        # print<loops> lists outer loops before inner ones.
+        containing = [i for i, loop in enumerate(fn.loops) if block.label in loop.blocks]
+        for i in containing:
+            if i not in placed:
+                parent = fn.loops[i].parent
+                (loops[parent]["body"] if parent is not None else top).append(loops[i])
+                placed.add(i)
+        entry = {"block": block.label, "instructions": block.instructions}
+        lines = _lines(block, fn.file)
+        if lines:
+            entry["lines"] = lines
+        if block.callees:
+            entry["calls"] = [_display(prog, c) for c in dict.fromkeys(block.callees)]
+        (loops[containing[-1]]["body"] if containing else top).append(entry)
+    return top
+
+
+def _display(prog: _Program, name: str) -> str:
+    fn = prog.functions.get(("device", name)) or prog.functions.get(("kernel", name))
+    return fn.display_name if fn else name
+
+
+def _site(edge: _Edge, other: _Function, own_file: Optional[str]) -> dict:
+    site = {"function": other.display_name, "at": other.path}
+    if edge.file and edge.file != own_file:
+        site["file"] = edge.file
+    if edge.line:
+        site["line"] = edge.line
+    if edge.launches is not None:
+        site["launch_count"] = edge.launches
+    return site
+
+
+def _dumps(value, indent: int = 0) -> str:
+    """Indented JSON that keeps lists of scalars, such as grid sizes, on one line."""
+    pad = "  " * indent
+    if isinstance(value, dict) and value:
+        items = [f"{pad}  {json.dumps(k)}: {_dumps(v, indent + 1)}" for k, v in value.items()]
+        return "{\n" + ",\n".join(items) + f"\n{pad}}}"
+    if isinstance(value, list) and any(isinstance(v, (dict, list)) for v in value):
+        items = [f"{pad}  {_dumps(v, indent + 1)}" for v in value]
+        return "[\n" + ",\n".join(items) + f"\n{pad}]"
+    return json.dumps(value)
+
+
+def _write_json(path: str, data) -> None:
+    with open(path, "w") as f:
+        f.write(_dumps(data) + "\n")
+
+
+def _write_text(path: str, text: Optional[str]) -> None:
+    if text:
+        with open(path, "w") as f:
+            f.write(text)
+
+
+def _write_function(prog: _Program, fn: _Function, out: str) -> None:
+    fn_dir = os.path.join(out, fn.path)
+    os.makedirs(fn_dir, exist_ok=True)
+    data = {"kind": fn.kind, "name": fn.display_name}
+    if fn.name != fn.display_name:
+        data["symbol"] = fn.name
+    for key, value in (("file", fn.file), ("line", fn.line), ("end_line", fn.end_line)):
+        if value is not None:
+            data[key] = value
+
+    k = fn.kernel
+    if k:
+        if k.code.instructions:
+            data["isa_instructions"] = k.code.instructions
+        if fn.line is None and k.code.line:
+            data["entry_line"] = k.code.line
+        if k.record:
+            data["static_hash"] = str(k.record["StaticHash"])
+            data["mneme_record"] = k.record_path
+
+    out_edges = [e for e in prog.edges.values() if e.caller is fn]
+    in_edges = [e for e in prog.edges.values() if e.callee is fn]
+    for key, edges, other in (("calls", [e for e in out_edges if e.origin != "launch"], "callee"),
+                              ("launches", [e for e in out_edges if e.origin == "launch"], "callee"),
+                              ("called_by", [e for e in in_edges if e.origin != "launch"], "caller"),
+                              ("launched_by", [e for e in in_edges if e.origin == "launch"], "caller")):
+        if edges:
+            data[key] = [_site(e, getattr(e, other), fn.file) for e in edges]
+    if fn.ir_fn:
+        data["body"] = _body(prog, fn.ir_fn)
+    _write_json(os.path.join(fn_dir, "function.json"), data)
+
+    if fn.ir_fn:
+        _write_text(os.path.join(fn_dir, "ir.ll"), fn.ir_fn.text)
+    if k:
+        ext = os.path.splitext(fn.file or "")[1] or ".txt"
+        _write_text(os.path.join(fn_dir, "source" + ext), k.source)
+        _write_text(os.path.join(fn_dir, "module.ll"), k.module_ir)
+        _write_text(os.path.join(fn_dir, "isa.s"), k.code.isa)
+        if k.record and k.record.get("instances"):
+            record_dir = os.path.dirname(k.record_path)
+            _write_json(os.path.join(fn_dir, "instances.json"), [{
+                "dynamic_hash": dyn_hash,
+                "grid": [inst["GridDims"][d] for d in "xyz"],
+                "block": [inst["BlockDims"][d] for d in "xyz"],
+                "shared_mem": inst["SharedMem"],
+                "occurrences": inst["Occurrences"],
+                "prologue": os.path.join(record_dir, inst["Prologue"]),
+                "epilogue": os.path.join(record_dir, inst["Epilogue"]),
+            } for dyn_hash, inst in k.record["instances"].items()])
+
+
+def _write_program(prog: _Program, out: str) -> None:
+    file_dirs = _assign_paths(prog)
+    os.makedirs(out)
+    kernels = sorted((f for f in prog.functions.values() if f.kind == "kernel"), key=lambda f: f.path)
+    _write_json(os.path.join(out, "program.json"), {
+        "name": prog.name,
+        "executable": prog.run["executable"],
+        "arguments": prog.run["arguments"],
+        "hostname": prog.run.get("hostname"),
+        "recorded_at": prog.run.get("recorded_at"),
+        "gpu_arch": prog.gpu_arch,
+        "mneme": prog.run.get("mneme", True),
+        "run_dir": prog.run_dir,
+        "kernels": [k.path for k in kernels],
+    })
+    _write_json(os.path.join(out, "launches.json"), [{
+        "kernel": prog.functions[("kernel", p.kernel)].display_name,
+        "at": prog.functions[("kernel", p.kernel)].path,
+        "grid": list(p.grid),
+        "block": list(p.block),
+        "shared_mem": p.shared_mem,
+        "count": p.count,
+        "call_path": [{"function": f.function, "at": prog.functions[("host", f.function)].path,
+                       "file": f.file, "line": f.line} for f in p.frames],
+    } for p in prog.launch_paths])
+    for (_, path), file_dir in file_dirs.items():
+        os.makedirs(os.path.join(out, file_dir))
+        _write_json(os.path.join(out, file_dir, "file.json"), {"path": path})
+    for fn in prog.functions.values():
+        _write_function(prog, fn, out)
+
+
+def _graph(prog: _Program, include_runtime: bool, nodes: list, edges: list) -> None:
+    """Add the program's hierarchy and call edges to a nodes/edges graph.
+
+    Node ids are paths in the database directory, with ``#`` for loops, blocks
+    and instances inside a function directory.
     """
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    nodes, edges = [], []
-
     def node(node_id, kind, label, **attrs):
         nodes.append({"id": node_id, "kind": kind, "label": label, **attrs})
 
     def edge(source, target, kind, **attrs):
         edges.append({"source": source, "target": target, "kind": kind, **attrs})
 
-    for p in conn.execute("SELECT * FROM programs"):
-        node(f"program:{p['id']}", "program", p["name"], executable=p["executable"],
-             arguments=json.loads(p["arguments"]), gpu_arch=p["gpu_arch"], hostname=p["hostname"])
-    visible_files = {row[0] for row in conn.execute(
-        "SELECT DISTINCT file_id FROM functions WHERE file_id IS NOT NULL"
-        + ("" if include_runtime else " AND NOT is_runtime"))}
-    for f in conn.execute("SELECT * FROM source_files"):
-        if f["id"] not in visible_files:
-            continue
-        node(f"file:{f['id']}", "source_file", os.path.basename(f["path"]), path=f["path"])
-        edge(f"program:{f['program_id']}", f"file:{f['id']}", "contains")
-    hidden = set()
-    for fn in conn.execute("SELECT * FROM functions"):
-        if fn["is_runtime"] and not include_runtime:
-            hidden.add(fn["id"])
-            continue
-        node(f"function:{fn['id']}", f"{fn['kind']}_function", fn["display_name"],
-             name=fn["name"], line=fn["line"])
-        parent = f"file:{fn['file_id']}" if fn["file_id"] else f"program:{fn['program_id']}"
-        edge(parent, f"function:{fn['id']}", "contains")
-    for k in conn.execute("SELECT * FROM kernels"):
-        node(f"function:{k['function_id']}", "kernel_function", k["demangled_name"] or k["mangled_name"],
-             name=k["mangled_name"], source_line=k["source_line"],
-             source_end_line=k["source_end_line"], isa_instructions=k["isa_instructions"])
-    for inst in conn.execute("SELECT i.*, k.function_id FROM kernel_instances i JOIN kernels k ON k.id = i.kernel_id"):
-        node(f"instance:{inst['id']}", "kernel_instance", inst["dynamic_hash"],
-             grid=[inst["grid_x"], inst["grid_y"], inst["grid_z"]],
-             block=[inst["block_x"], inst["block_y"], inst["block_z"]],
-             shared_mem=inst["shared_mem"], occurrences=inst["occurrences"])
-        edge(f"function:{inst['function_id']}", f"instance:{inst['id']}", "has_instance")
-    for loop in conn.execute("SELECT * FROM loops"):
-        if loop["function_id"] in hidden:
-            continue
-        node(f"loop:{loop['id']}", "loop", loop["header"], depth=loop["depth"])
-        parent = f"loop:{loop['parent_id']}" if loop["parent_id"] else f"function:{loop['function_id']}"
-        edge(parent, f"loop:{loop['id']}", "contains")
-    for bb in conn.execute("SELECT * FROM basic_blocks"):
-        if bb["function_id"] in hidden:
-            continue
-        node(f"block:{bb['id']}", "basic_block", bb["label"], instructions=bb["instructions"],
-             first_line=bb["first_line"], last_line=bb["last_line"])
-        parent = f"loop:{bb['loop_id']}" if bb["loop_id"] else f"function:{bb['function_id']}"
-        edge(parent, f"block:{bb['id']}", "contains")
-    for e in conn.execute("SELECT * FROM call_edges"):
-        if e["caller_id"] in hidden or e["callee_id"] in hidden:
-            continue
-        edge(f"function:{e['caller_id']}", f"function:{e['callee_id']}",
-             "launches" if e["origin"] == "launch" else "calls", origin=e["origin"],
-             call_file=e["call_file"], call_line=e["call_line"], launches=e["launches"])
+    def fn_id(fn):
+        return f"{prog.dir}/{fn.path}"
 
-    # Kernel rows re-describe their function node; keep the richer, later one.
-    unique = {}
-    for n in nodes:
-        unique[n["id"]] = {**unique.get(n["id"], {}), **n}
-    with open(graph_path, "w") as f:
-        json.dump({"nodes": list(unique.values()), "edges": edges}, f, indent=1)
-    conn.close()
-    return graph_path
+    node(prog.dir, "program", prog.name, executable=prog.run["executable"],
+         arguments=prog.run["arguments"], gpu_arch=prog.gpu_arch, hostname=prog.run.get("hostname"))
+    visible = [f for f in prog.functions.values() if include_runtime or not f.is_runtime]
+    for file_dir, path in sorted({(os.path.dirname(f.path), f.file) for f in visible}):
+        node(f"{prog.dir}/{file_dir}", "source_file", os.path.basename(file_dir), path=path)
+        edge(prog.dir, f"{prog.dir}/{file_dir}", "contains")
+
+    for fn in visible:
+        attrs = {"name": fn.name, "file": fn.file, "line": fn.line}
+        if fn.end_line:
+            attrs["end_line"] = fn.end_line
+        if fn.kernel and fn.kernel.code.instructions:
+            attrs["isa_instructions"] = fn.kernel.code.instructions
+        node(fn_id(fn), f"{fn.kind}_function", fn.display_name, **attrs)
+        edge(f"{prog.dir}/{os.path.dirname(fn.path)}", fn_id(fn), "contains")
+
+        if fn.kernel and fn.kernel.record:
+            for dyn_hash, inst in fn.kernel.record.get("instances", {}).items():
+                inst_id = f"{fn_id(fn)}#instance:{dyn_hash}"
+                node(inst_id, "kernel_instance", dyn_hash,
+                     grid=[inst["GridDims"][d] for d in "xyz"],
+                     block=[inst["BlockDims"][d] for d in "xyz"],
+                     shared_mem=inst["SharedMem"], occurrences=inst["Occurrences"])
+                edge(fn_id(fn), inst_id, "has_instance")
+
+        if not fn.ir_fn:
+            continue
+        loop_ids = [f"{fn_id(fn)}#loop:{loop.header}" for loop in fn.ir_fn.loops]
+        for loop, loop_id in zip(fn.ir_fn.loops, loop_ids):
+            node(loop_id, "loop", loop.header, depth=loop.depth)
+            edge(loop_ids[loop.parent] if loop.parent is not None else fn_id(fn), loop_id, "contains")
+        for block in fn.ir_fn.blocks:
+            containing = [i for i, loop in enumerate(fn.ir_fn.loops) if block.label in loop.blocks]
+            block_id = f"{fn_id(fn)}#block:{block.label}"
+            lines = _lines(block, fn.file) or [None, None]
+            node(block_id, "basic_block", block.label, instructions=block.instructions,
+                 first_line=lines[0], last_line=lines[1])
+            edge(loop_ids[containing[-1]] if containing else fn_id(fn), block_id, "contains")
+
+    for e in prog.edges.values():
+        if not include_runtime and (e.caller.is_runtime or e.callee.is_runtime):
+            continue
+        edge(fn_id(e.caller), fn_id(e.callee), "launches" if e.origin == "launch" else "calls",
+             origin=e.origin, call_file=e.file, call_line=e.line, launches=e.launches)
+
+
+def _prepare_output(out_dir: str) -> None:
+    """Replace a previous database, but never a directory that is not one."""
+    if not os.path.exists(out_dir):
+        return
+    index = os.path.join(out_dir, "index.json")
+    try:
+        with open(index) as f:
+            ours = json.load(f).get("format") == FORMAT
+    except (OSError, ValueError):
+        ours = False
+    if ours:
+        shutil.rmtree(out_dir)
+    elif os.listdir(out_dir):
+        raise SystemExit(f"findingmnemo export: {out_dir} exists and is not a FindingMnemo database")
+
+
+def build(run_dirs: List[str], out_dir: str, llvm_bin: str, include_runtime: bool = False) -> str:
+    """Write the database for ``run_dirs`` to ``out_dir``, one program per run."""
+    for run_dir in run_dirs:
+        if not os.path.isfile(os.path.join(run_dir, "run.json")):
+            raise SystemExit(f"findingmnemo export: {run_dir} is not a run directory (no run.json)")
+    _prepare_output(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    used: set = set()
+    nodes, edges, index = [], [], []
+    for run_dir in run_dirs:
+        prog = _Program(os.path.abspath(run_dir), llvm_bin)
+        prog.dir = _unique(_safe_name(os.path.basename(os.path.normpath(prog.run_dir))), used)
+        _write_program(prog, os.path.join(out_dir, prog.dir))
+        _graph(prog, include_runtime, nodes, edges)
+        index.append({"dir": prog.dir, "name": prog.name, "arguments": prog.run["arguments"],
+                      "gpu_arch": prog.gpu_arch})
+    with open(os.path.join(out_dir, "graph.json"), "w") as f:
+        json.dump({"nodes": nodes, "edges": edges}, f, indent=1)
+    _write_json(os.path.join(out_dir, "index.json"), {
+        "format": FORMAT,
+        "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "programs": index,
+    })
+    return out_dir

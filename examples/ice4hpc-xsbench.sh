@@ -42,4 +42,4 @@ for size in $SIZES; do
   done
 done
 
-findingmnemo export "${RUNS[@]}" --db "$WORK/xsbench.sqlite"
+findingmnemo export "${RUNS[@]}" -o "$WORK/xsbench-db"

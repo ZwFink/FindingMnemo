@@ -49,6 +49,8 @@ class Function:
     display_name: Optional[str] = None
     blocks: List[BasicBlock] = field(default_factory=list)
     loops: List[Loop] = field(default_factory=list)
+    # The function's definition, from ``define`` to the closing brace.
+    text: str = ""
 
     @property
     def calls(self) -> List[Tuple[str, Optional[Tuple[str, int]]]]:
@@ -125,6 +127,7 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
     functions: Dict[str, Function] = {}
     current: Optional[Function] = None
     block: Optional[BasicBlock] = None
+    body: List[str] = []
 
     for line in lines:
         if current is None:
@@ -132,15 +135,18 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
             if not m:
                 continue
             current = Function(_unquote(m.group(1)))
+            body = [line]
             dbg = re.search(r"!dbg !(\d+)", line)
             if dbg:
                 current.file, current.line, current.display_name = debug.subprogram(int(dbg.group(1)))
             # LLVM omits the label of an unnamed entry block.
             block = BasicBlock("entry")
             continue
+        body.append(line)
         if line.startswith("}"):
             if block and (block.instructions or not current.blocks):
                 current.blocks.append(block)
+            current.text = "\n".join(body) + "\n"
             functions[current.name] = current
             current, block = None, None
             continue

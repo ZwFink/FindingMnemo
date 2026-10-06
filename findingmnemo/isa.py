@@ -1,12 +1,28 @@
 """Extract device code objects from HIP binaries and disassemble kernels."""
 
+import json
 import os
 import re
 import subprocess
 import tempfile
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, Iterable, Optional, Tuple
 
 _INSTRUCTION = re.compile(r"^\t\S")
+
+
+@dataclass
+class KernelCode:
+    isa: Optional[str] = None
+    # Demangled name and source location of the kernel's first instruction,
+    # outside any function inlined there.
+    name: Optional[str] = None
+    file: Optional[str] = None
+    line: Optional[int] = None
+
+    @property
+    def instructions(self) -> Optional[int]:
+        return instruction_count(self.isa) if self.isa else None
 
 
 class CodeObject:
@@ -57,13 +73,43 @@ class CodeObject:
         return body[1].lstrip("\n") if len(body) == 2 else None
 
 
+    def entry_locations(self, kernels: Iterable[str]) -> Dict[str, Tuple[str, str, int]]:
+        if not self.path:
+            return {}
+        symbols = subprocess.run(
+            [f"{self.llvm_bin}/llvm-nm", "--defined-only", self.path],
+            capture_output=True, text=True,
+        ).stdout.split("\n")
+        addresses = {}
+        for entry in symbols:
+            parts = entry.split()
+            if len(parts) == 3 and parts[1] in "Tt" and parts[2] in kernels:
+                addresses[parts[2]] = "0x" + parts[0]
+        if not addresses:
+            return {}
+        out = subprocess.run(
+            [f"{self.llvm_bin}/llvm-symbolizer", f"--obj={self.path}", "--output-style=JSON",
+             "--inlining", "--demangle"],
+            input="\n".join(addresses.values()), capture_output=True, text=True,
+        ).stdout.splitlines()
+        locations = {}
+        for kernel, line in zip(addresses, out):
+            frames = json.loads(line).get("Symbol", [])
+            if frames and frames[-1].get("FileName"):
+                outer = frames[-1]
+                locations[kernel] = (outer["FunctionName"], outer["FileName"], outer.get("Line") or None)
+        return locations
+
+
 def instruction_count(isa: str) -> int:
     return sum(1 for line in isa.splitlines() if _INSTRUCTION.match(line))
 
 
 def disassemble_kernels(binary: str, kernels, llvm_bin: str
-                        ) -> Tuple[Optional[str], Dict[str, Optional[str]]]:
-    """Return the device architecture and each kernel's disassembly."""
+                        ) -> Tuple[Optional[str], Dict[str, KernelCode]]:
+    """Return the device architecture and each kernel's disassembly and location."""
     with tempfile.TemporaryDirectory() as workdir:
         co = CodeObject(binary, llvm_bin, workdir)
-        return co.arch, {k: co.disassemble(k) for k in kernels}
+        locations = co.entry_locations(kernels)
+        return co.arch, {k: KernelCode(co.disassemble(k), *locations.get(k, (None, None, None)))
+                         for k in kernels}

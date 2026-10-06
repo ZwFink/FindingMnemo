@@ -33,8 +33,8 @@ to a kernel launch), device edges are *static* (from the recorded IR).
 3. **`findingmnemo export`** symbolizes the stacks with `llvm-symbolizer`,
    parses the recorded IR (functions, calls, loops via `opt print<loops>`,
    basic blocks with source lines), disassembles each kernel from the
-   application's embedded code object, and writes SQLite plus a nodes/edges
-   JSON graph.
+   application's embedded code object, and writes a database directory that
+   mirrors the hierarchy, plus a nodes/edges JSON graph.
 
 ## Requirements
 
@@ -53,14 +53,14 @@ export MNEME_PREFIX=/path/to/mneme/install
 source examples/env-tuolumne.sh
 
 findingmnemo record -o runs/myapp -- ./myapp args...
-findingmnemo export runs/myapp            # runs/myapp/findingmnemo.sqlite + .graph.json
+findingmnemo export runs/myapp            # writes runs/myapp/findingmnemo-db/
 ```
 
 Several runs, for example one application with different inputs, can go into
-one database; each becomes a separate program:
+one database; each becomes a separate program directory:
 
 ```bash
-findingmnemo export runs/app-small runs/app-large --db app.sqlite
+findingmnemo export runs/app-small runs/app-large -o app-db
 ```
 
 Useful `record` options:
@@ -79,77 +79,90 @@ Useful `record` options:
   and records the dataset's GPU configurations (`-m event`, grid types
   `unionized`, `hash`, `nuclide`).
 
-For XSBench `-m event -s small -G unionized` the graph contains:
+## Database layout
+
+The database is a directory tree that follows the hierarchy, so `ls`, `tree`,
+an editor or `jq` show what is in it. For the XSBench example:
 
 ```
-program: XSBench
-  source_file: Main.cpp
-    host_function: main  -calls-> run_event_based_simulation_baseline @ Main.cpp:65
-  source_file: Simulation.cpp
-    host_function: run_event_based_simulation_baseline  -launches-> xs_lookup_kernel_baseline @ :26
-    kernel_function: xs_lookup_kernel_baseline  (lines 50-105, 814 gfx942 instructions)
-      -calls-> fast_forward_LCG @62, LCG_random_double @65, pick_mat @66, calculate_macro_xs @71
-      loop: for.cond [4 blocks]
-    device_function: calculate_macro_xs  -calls-> grid_search @214, calculate_micro_xs @236
-      loop: for.cond7 ...
+xsbench-db/
+├── index.json                  format version and the list of programs
+├── graph.json                  nodes/edges graph of every program
+├── xsbench-small-unionized/    one directory per recorded run
+│   ├── program.json            executable, arguments, host, GPU architecture, kernels
+│   ├── launches.json           every launch: kernel, host call path, grid, block, count
+│   ├── files/                  application source files
+│   │   ├── Main.cpp/
+│   │   │   ├── file.json       full path of the source file
+│   │   │   └── main/function.json
+│   │   └── Simulation.cpp/
+│   │       ├── run_event_based_simulation_baseline/function.json
+│   │       ├── xs_lookup_kernel_baseline/
+│   │       │   ├── function.json   lines 50-105, calls, launched_by, loop/block tree
+│   │       │   ├── source.cpp      the kernel's source lines
+│   │       │   ├── ir.ll           the kernel's LLVM IR
+│   │       │   ├── module.ll       the whole recorded module
+│   │       │   ├── isa.s           gfx942 disassembly
+│   │       │   └── instances.json  launch configurations Mneme recorded
+│   │       ├── calculate_macro_xs/{function.json, ir.ll}
+│   │       └── pick_mat/{function.json, ir.ll}
+│   └── runtime/                HIP runtime helpers (__ockl_*, __hip_get_*)
+└── xsbench-small-hash/ ...
 ```
 
-## Database
+Every function directory has a `function.json`:
 
-| table | one row per |
+| key | meaning |
 | --- | --- |
-| `programs` | recorded run: executable, arguments, host, GPU architecture |
-| `source_files` | file that defines a function |
-| `functions` | host, kernel or device function (`kind`); `is_runtime` marks HIP helpers |
-| `call_edges` | caller → callee; `origin` is `stack`, `launch` or `ir`; `launches` counts kernel launches through dynamic edges |
-| `kernels` | kernel: source span and text, IR, ISA, instruction count, raw Mneme record |
-| `kernel_instances` | launch configuration Mneme recorded (at most `--per-kernel-max-recordings`, default 4) |
-| `launch_paths` | every launch, aggregated by host call path and configuration |
-| `loops` | loop in a function, with its parent loop |
-| `basic_blocks` | basic block: instruction count, innermost loop, source lines, callees |
+| `kind` | `host`, `kernel` or `device` |
+| `name`, `symbol` | demangled name and linkage name |
+| `file`, `line`, `end_line` | definition; `end_line` for kernels recorded by Mneme |
+| `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
+| `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
+| `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
+| `isa_instructions`, `static_hash`, `mneme_record` | kernels only |
+
+Host call edges are *dynamic* (observed on the way to a kernel launch);
+device call edges are *static* (from the recorded IR). `at` paths are relative
+to the program directory.
 
 Example queries:
 
-```sql
--- Which host call paths launch each kernel, and how often.
-SELECT k.demangled_name, lp.frames, lp.grid_x, lp.block_x, lp.count
-FROM launch_paths lp JOIN kernels k ON k.id = lp.kernel_id;
+```bash
+cd xsbench-db
+# Which host call paths launch each kernel, and how often.
+jq -r '.[] | "\(.kernel) x\(.count): " + ([.call_path[].function] | join(" -> "))' \
+  xsbench-small-unionized/launches.json
 
--- Device call graph of one program, without HIP runtime helpers.
-SELECT a.display_name AS caller, b.display_name AS callee, e.call_line
-FROM call_edges e
-JOIN functions a ON a.id = e.caller_id
-JOIN functions b ON b.id = e.callee_id
-WHERE e.origin = 'ir' AND NOT b.is_runtime AND a.program_id = 1;
+# Call graph of one program.
+jq -r '.name as $f | .calls[]? | "\($f) -> \(.function) @\(.line)"' \
+  xsbench-small-unionized/files/*/*/function.json
 
--- Loop nests and their size, per function.
-SELECT f.display_name, l.depth, l.header, COUNT(bb.id) AS blocks, SUM(bb.instructions) AS instructions
-FROM loops l JOIN functions f ON f.id = l.function_id
-LEFT JOIN basic_blocks bb ON bb.loop_id = l.id
-GROUP BY l.id;
+# Loop nests and IR size per function.
+jq -r 'select(.body) | "\(.name): depth \([.. | objects | select(.loop) | .depth] | max // 0), "
+  + "\([.. | objects | select(.block) | .instructions] | add) IR instructions"' \
+  xsbench-small-unionized/files/*/*/function.json
 
--- Match recorded (replayable) instances to the call paths that produced them.
-SELECT k.demangled_name, i.dynamic_hash, i.prologue, lp.frames
-FROM kernel_instances i
-JOIN kernels k ON k.id = i.kernel_id
-JOIN launch_paths lp ON lp.kernel_id = k.id
-  AND (lp.grid_x, lp.grid_y, lp.grid_z, lp.block_x, lp.block_y, lp.block_z, lp.shared_mem)
-    = (i.grid_x, i.grid_y, i.grid_z, i.block_x, i.block_y, i.block_z, i.shared_mem);
+# The same kernel across inputs.
+jq -r '"\(input_filename | split("/")[0]): \(.isa_instructions) instructions"' \
+  */files/*/xs_lookup_kernel_baseline/function.json
 ```
 
-The graph JSON (`{"nodes": [...], "edges": [...]}`) loads directly into
-NetworkX or a graph database:
+`graph.json` (`{"nodes": [...], "edges": [...]}`) holds the same hierarchy for
+graph tools. Node ids are paths in the database (`#loop:`, `#block:` and
+`#instance:` name the parts of a function), and edge kinds are `contains`,
+`calls`, `launches` and `has_instance`:
 
 ```python
 import json, networkx as nx
-g = json.load(open("xsbench.graph.json"))
+g = json.load(open("xsbench-db/graph.json"))
 G = nx.MultiDiGraph()
 G.add_nodes_from((n["id"], n) for n in g["nodes"])
 G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 ```
 
-`export --include-runtime` keeps HIP runtime helpers (`__ockl_*`,
-`__hip_get_*`) in the graph; they are always in the database.
+`export --include-runtime` also puts HIP runtime helpers in `graph.json`;
+they are always in each program's `runtime/` directory.
 
 ## Limitations
 
@@ -160,6 +173,9 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   `__cudaRegisterFunction` and `cuobjdump` instead of `clang-offload-bundler`.
 - **ISA comes from the main executable.** Kernels in shared libraries get call
   paths and IR but no ISA.
+- **Kernels recorded with `--no-mneme`** have no IR, source span or loops. Their
+  file comes from the code object's line table, and `entry_line` is the line
+  of their first instruction.
 - **Mneme aborts on zero-byte `hipMalloc`** ("Destroying memory descriptor
   without releasing device memory ... size=0"). XSBench's `hash` and `nuclide`
   grid types hit this, so the example records them with `--no-mneme`.

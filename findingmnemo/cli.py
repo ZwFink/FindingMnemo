@@ -75,13 +75,11 @@ def record(args) -> int:
 
 
 def export_cmd(args) -> int:
-    if len(args.run_dirs) > 1 and not args.db:
-        sys.exit("findingmnemo export: pass --db when exporting several run directories")
-    db = args.db or os.path.join(args.run_dirs[0], "findingmnemo.sqlite")
-    export.build(args.run_dirs, db, args.llvm_bin)
-    graph = export.export_graph(db, args.graph or os.path.splitext(db)[0] + ".graph.json",
-                                args.include_runtime)
-    print(f"database: {db}\ngraph:    {graph}")
+    if len(args.run_dirs) > 1 and not args.output:
+        sys.exit("findingmnemo export: pass -o when exporting several run directories")
+    out = args.output or os.path.join(args.run_dirs[0], "findingmnemo-db")
+    export.build(args.run_dirs, out, args.llvm_bin, args.include_runtime)
+    print(f"database: {out}")
     return 0
 
 
@@ -100,13 +98,13 @@ def main(argv=None) -> int:
     rec.add_argument("cmd", nargs=argparse.REMAINDER, help="-- application [arguments]")
     rec.set_defaults(func=record)
 
-    exp = sub.add_parser("export", help="build the SQLite database and graph JSON from a run directory")
+    exp = sub.add_parser("export", help="build the database directory from run directories")
     exp.add_argument("run_dirs", nargs="+", metavar="run_dir",
                      help="run directories; each becomes one program in the database")
-    exp.add_argument("--db", help="SQLite output (default: <run_dir>/findingmnemo.sqlite)")
-    exp.add_argument("--graph", help="graph JSON output (default: next to the database, *.graph.json)")
+    exp.add_argument("-o", "--output",
+                     help="database directory to create (default: <run_dir>/findingmnemo-db)")
     exp.add_argument("--include-runtime", action="store_true",
-                     help="keep HIP runtime helper functions in the graph")
+                     help="keep HIP runtime helper functions in graph.json (they are always in runtime/)")
     exp.add_argument("--llvm-bin", default=_default_llvm_bin(),
                      help="directory with llvm-dis, opt, llvm-symbolizer, llvm-objdump and "
                           "clang-offload-bundler (default: Mneme's LLVM)")

@@ -39,6 +39,7 @@ def test_parse_module_functions_blocks_and_calls():
     helper = functions["helper.fn"]
     assert (helper.line, helper.display_name) == (3, "helper")
     assert helper.calls == []
+    assert helper.text == 'define internal fastcc i32 @"helper.fn"(i32 %v) !dbg !6 {\nentry:\n  ret i32 %v\n}\n'
 
 
 def test_parse_loops_nesting():
