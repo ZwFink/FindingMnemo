@@ -4,6 +4,7 @@
   "symbol": "_Z19grid_search_nuclideldP16NuclideGridPointll",
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
   "line": 270,
+  "end_line": 290,
   "called_by": [
     {
       "function": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",

@@ -4,6 +4,7 @@
   "symbol": "_Z17LCG_random_doublePm",
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
   "line": 332,
+  "end_line": 340,
   "called_by": [
     {
       "function": "xs_lookup_kernel_baseline(Inputs, SimulationData)",

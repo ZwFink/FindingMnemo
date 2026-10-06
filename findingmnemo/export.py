@@ -166,6 +166,8 @@ class _Program:
             # Device functions shared by several kernels appear in each module.
             if node.ir_fn is None:
                 node.ir_fn = fn
+                if kind == "device":
+                    node.end_line = _last_line(fn)
         for fn in parsed.values():
             caller = self.functions[("kernel" if fn.name == name else "device", fn.name)]
             for callee_name, site in fn.calls:
@@ -316,6 +318,14 @@ def _assign_paths(prog: _Program) -> Dict[Optional[str], str]:
     return file_dirs
 
 
+def _last_line(fn: ir.Function) -> Optional[int]:
+    """The last line of the function that generated code, as Mneme finds it
+    for kernels. The recorded IR is not inlined, so every location in the
+    function's file belongs to the function itself."""
+    lines = [ln for b in fn.blocks for f, ln in b.lines if f == fn.file]
+    return max(lines + [fn.line]) if fn.line else None
+
+
 def _lines(block: ir.BasicBlock, file: Optional[str]) -> Optional[List[int]]:
     own = [ln for f, ln in block.lines if f == file] or [ln for _, ln in block.lines]
     return [min(own), max(own)] if own else None
@@ -387,6 +397,15 @@ def _write_text(path: str, text: Optional[str]) -> None:
 def _write_function(prog: _Program, fn: _Function, out: str) -> None:
     fn_dir = os.path.join(out, fn.path)
     os.makedirs(fn_dir, exist_ok=True)
+    k = fn.kernel
+    source = k.source.text if k and k.source else None
+    if fn.kind == "device" and fn.end_line and fn.file in prog.source_copies:
+        with open(prog.source_copies[fn.file]) as f:
+            lines = f.readlines()
+        # A function with one return statement ends there in the debug info.
+        if fn.end_line < len(lines) and lines[fn.end_line].strip() == "}":
+            fn.end_line += 1
+        source = "".join(lines[fn.line - 1:fn.end_line])
     data = {"kind": fn.kind, "name": fn.display_name}
     if fn.name != fn.display_name:
         data["symbol"] = fn.name
@@ -394,7 +413,6 @@ def _write_function(prog: _Program, fn: _Function, out: str) -> None:
         if value is not None:
             data[key] = value
 
-    k = fn.kernel
     if k:
         if k.code.instructions:
             data["isa_instructions"] = k.code.instructions
@@ -418,9 +436,8 @@ def _write_function(prog: _Program, fn: _Function, out: str) -> None:
 
     if fn.ir_fn:
         _write_text(os.path.join(fn_dir, "ir.ll"), fn.ir_fn.text)
+    _write_text(os.path.join(fn_dir, "source" + (os.path.splitext(fn.file or "")[1] or ".txt")), source)
     if k:
-        ext = os.path.splitext(fn.file or "")[1] or ".txt"
-        _write_text(os.path.join(fn_dir, "source" + ext), k.source and k.source.text)
         _write_text(os.path.join(fn_dir, "module.ll"), k.module_ir)
         _write_text(os.path.join(fn_dir, "isa.s"), k.code.isa)
         if k.record and k.record.get("instances"):

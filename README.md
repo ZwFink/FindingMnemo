@@ -33,7 +33,8 @@ to a kernel launch), device edges are *static* (from the recorded IR).
 3. **`findingmnemo export`** symbolizes the stacks with `llvm-symbolizer`,
    parses the recorded IR (functions, calls, loops via `opt print<loops>`,
    basic blocks with source lines), reads each kernel's source through
-   Mneme's `RecordedExecution.kernel_source()`, disassembles each kernel from the
+   Mneme's `RecordedExecution.kernel_source()`, cuts each device function's
+   source from Mneme's copy of its file, disassembles each kernel from the
    application's embedded code object, and writes a database directory that
    mirrors the hierarchy, plus a nodes/edges JSON graph.
 
@@ -115,8 +116,8 @@ xsbench-db/
 │   │       │   ├── module.ll       the whole recorded module
 │   │       │   ├── isa.s           gfx942 disassembly
 │   │       │   └── instances.json  launch configurations Mneme recorded
-│   │       ├── calculate_macro_xs/{function.json, ir.ll}
-│   │       └── pick_mat/{function.json, ir.ll}
+│   │       ├── calculate_macro_xs/{function.json, source.cpp, ir.ll}
+│   │       └── pick_mat/{function.json, source.cpp, ir.ll}
 ```
 
 Every function directory has a `function.json`:
@@ -125,7 +126,7 @@ Every function directory has a `function.json`:
 | --- | --- |
 | `kind` | `host`, `kernel` or `device` |
 | `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
-| `file`, `line`, `end_line` | definition; `end_line` for kernels recorded by Mneme |
+| `file`, `line`, `end_line` | definition; `end_line` for kernels and device functions recorded by Mneme |
 | `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
@@ -218,7 +219,13 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   application file.
 - **Only files that define recorded kernels are copied.** Mneme copies the
   translation unit of each kernel it records; other files, such as those with
-  only host code, are referenced by path in `file.json`.
+  only host code, are referenced by path in `file.json`. Device functions
+  defined in other files, such as headers, get `end_line` but no `source`
+  file.
+- **Device function spans come from the IR.** Like Mneme does for kernels,
+  a device function ends at its last line that generated code, extended over
+  a closing brace on the next line (a function with a single `return` ends at
+  that statement in the debug info).
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.

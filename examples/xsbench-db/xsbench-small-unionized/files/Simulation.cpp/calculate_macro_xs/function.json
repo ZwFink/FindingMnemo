@@ -4,6 +4,7 @@
   "symbol": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
   "line": 193,
+  "end_line": 242,
   "calls": [
     {
       "function": "grid_search(long, double, double*)",

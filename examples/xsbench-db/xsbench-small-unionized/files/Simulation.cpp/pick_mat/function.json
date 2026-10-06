@@ -4,6 +4,7 @@
   "symbol": "_Z8pick_matPm",
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
   "line": 293,
+  "end_line": 330,
   "calls": [
     {
       "function": "LCG_random_double(unsigned long*)",

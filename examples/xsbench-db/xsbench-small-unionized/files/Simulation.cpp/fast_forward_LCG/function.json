@@ -4,6 +4,7 @@
   "symbol": "_Z16fast_forward_LCGmm",
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
   "line": 342,
+  "end_line": 368,
   "called_by": [
     {
       "function": "xs_lookup_kernel_baseline(Inputs, SimulationData)",

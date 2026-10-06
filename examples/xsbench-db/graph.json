@@ -139,7 +139,8 @@
    "label": "fast_forward_LCG(unsigned long, unsigned long)",
    "name": "_Z16fast_forward_LCGmm",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 342
+   "line": 342,
+   "end_line": 368
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:entry",
@@ -195,7 +196,8 @@
    "label": "LCG_random_double(unsigned long*)",
    "name": "_Z17LCG_random_doublePm",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 332
+   "line": 332,
+   "end_line": 340
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double#block:entry",
@@ -211,7 +213,8 @@
    "label": "pick_mat(unsigned long*)",
    "name": "_Z8pick_matPm",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 293
+   "line": 293,
+   "end_line": 330
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
@@ -343,7 +346,8 @@
    "label": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
    "name": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 193
+   "line": 193,
+   "end_line": 242
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
@@ -481,7 +485,8 @@
    "label": "grid_search(long, double, double*)",
    "name": "_Z11grid_searchldPd",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 247
+   "line": 247,
+   "end_line": 267
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
@@ -551,7 +556,8 @@
    "label": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
    "name": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 108
+   "line": 108,
+   "end_line": 190
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:entry",
@@ -727,7 +733,8 @@
    "label": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
    "name": "_Z19grid_search_nuclideldP16NuclideGridPointll",
    "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
-   "line": 270
+   "line": 270,
+   "end_line": 290
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
