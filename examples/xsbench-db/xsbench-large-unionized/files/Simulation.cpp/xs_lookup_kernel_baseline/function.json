@@ -1,0 +1,95 @@
+{
+  "kind": "kernel",
+  "name": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+  "symbol": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "line": 50,
+  "end_line": 105,
+  "isa_instructions": 814,
+  "static_hash": "14062985557092847525",
+  "mneme_record": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-large-unionized/record-db/14062985557092847525.json",
+  "calls": [
+    {
+      "function": "fast_forward_LCG(unsigned long, unsigned long)",
+      "at": "files/Simulation.cpp/fast_forward_LCG",
+      "line": 62
+    },
+    {
+      "function": "LCG_random_double(unsigned long*)",
+      "at": "files/Simulation.cpp/LCG_random_double",
+      "line": 65
+    },
+    {
+      "function": "pick_mat(unsigned long*)",
+      "at": "files/Simulation.cpp/pick_mat",
+      "line": 66
+    },
+    {
+      "function": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
+      "at": "files/Simulation.cpp/calculate_macro_xs",
+      "line": 71
+    }
+  ],
+  "launched_by": [
+    {
+      "function": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+      "at": "files/Simulation.cpp/run_event_based_simulation_baseline",
+      "line": 26,
+      "launch_count": 1
+    }
+  ],
+  "body": [
+    {
+      "block": "entry",
+      "instructions": 52,
+      "lines": [53, 55]
+    },
+    {
+      "block": "if.then",
+      "instructions": 1,
+      "lines": [56, 56]
+    },
+    {
+      "block": "if.end",
+      "instructions": 12,
+      "lines": [59, 96],
+      "calls": ["fast_forward_LCG(unsigned long, unsigned long)", "LCG_random_double(unsigned long*)", "pick_mat(unsigned long*)", "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)"]
+    },
+    {
+      "loop": "for.cond",
+      "depth": 1,
+      "body": [
+        {
+          "block": "for.cond",
+          "instructions": 5,
+          "lines": [96, 96]
+        },
+        {
+          "block": "for.body",
+          "instructions": 5,
+          "lines": [98, 98]
+        },
+        {
+          "block": "if.then10",
+          "instructions": 1,
+          "lines": [102, 102]
+        },
+        {
+          "block": "for.inc",
+          "instructions": 4,
+          "lines": [96, 96]
+        }
+      ]
+    },
+    {
+      "block": "for.cond.cleanup",
+      "instructions": 8,
+      "lines": [104, 105]
+    },
+    {
+      "block": "cleanup",
+      "instructions": 1,
+      "lines": [105, 105]
+    }
+  ]
+}

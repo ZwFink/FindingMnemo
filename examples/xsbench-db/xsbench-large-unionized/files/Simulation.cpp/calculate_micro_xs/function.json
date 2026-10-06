@@ -1,0 +1,134 @@
+{
+  "kind": "device",
+  "name": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
+  "symbol": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "line": 108,
+  "calls": [
+    {
+      "function": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
+      "at": "files/Simulation.cpp/grid_search_nuclide",
+      "line": 122
+    },
+    {
+      "function": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
+      "at": "files/Simulation.cpp/grid_search_nuclide",
+      "line": 163
+    }
+  ],
+  "called_by": [
+    {
+      "function": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
+      "at": "files/Simulation.cpp/calculate_macro_xs",
+      "line": 236
+    }
+  ],
+  "body": [
+    {
+      "block": "entry",
+      "instructions": 2,
+      "lines": [119, 119]
+    },
+    {
+      "block": "if.then",
+      "instructions": 7,
+      "lines": [122, 126],
+      "calls": ["grid_search_nuclide(long, double, NuclideGridPoint*, long, long)"]
+    },
+    {
+      "block": "if.then3",
+      "instructions": 4,
+      "lines": [127, 127]
+    },
+    {
+      "block": "if.else",
+      "instructions": 3,
+      "lines": [129, 129]
+    },
+    {
+      "block": "if.else12",
+      "instructions": 2,
+      "lines": [131, 131]
+    },
+    {
+      "block": "if.then14",
+      "instructions": 9,
+      "lines": [135, 135]
+    },
+    {
+      "block": "if.then22",
+      "instructions": 5,
+      "lines": [136, 136]
+    },
+    {
+      "block": "if.else33",
+      "instructions": 4,
+      "lines": [138, 138]
+    },
+    {
+      "block": "if.else44",
+      "instructions": 9,
+      "lines": [143, 147]
+    },
+    {
+      "block": "if.then52",
+      "instructions": 3,
+      "lines": [148, 148]
+    },
+    {
+      "block": "if.else55",
+      "instructions": 7,
+      "lines": [150, 150]
+    },
+    {
+      "block": "if.end62",
+      "instructions": 12,
+      "lines": [155, 158]
+    },
+    {
+      "block": "if.then75",
+      "instructions": 1,
+      "lines": [159, 159]
+    },
+    {
+      "block": "if.else76",
+      "instructions": 2,
+      "lines": [160, 160]
+    },
+    {
+      "block": "if.then78",
+      "instructions": 3,
+      "lines": [161, 161]
+    },
+    {
+      "block": "if.else81",
+      "instructions": 4,
+      "lines": [163, 163],
+      "calls": ["grid_search_nuclide(long, double, NuclideGridPoint*, long, long)"]
+    },
+    {
+      "block": "if.end90",
+      "instructions": 5,
+      "lines": [165, 165]
+    },
+    {
+      "block": "if.then94",
+      "instructions": 4,
+      "lines": [166, 166]
+    },
+    {
+      "block": "if.else101",
+      "instructions": 3,
+      "lines": [168, 168]
+    },
+    {
+      "block": "if.end107",
+      "instructions": 2
+    },
+    {
+      "block": "if.end109",
+      "instructions": 52,
+      "lines": [171, 190]
+    }
+  ]
+}

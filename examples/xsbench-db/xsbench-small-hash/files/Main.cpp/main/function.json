@@ -1,0 +1,14 @@
+{
+  "kind": "host",
+  "name": "main",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+  "line": 3,
+  "calls": [
+    {
+      "function": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+      "at": "files/Simulation.cpp/run_event_based_simulation_baseline",
+      "line": 65,
+      "launch_count": 1
+    }
+  ]
+}

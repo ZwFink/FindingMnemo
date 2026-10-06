@@ -1,0 +1,11 @@
+[
+  {
+    "dynamic_hash": "18336829354283970353",
+    "grid": [66407, 1, 1],
+    "block": [256, 1, 1],
+    "shared_mem": 0,
+    "occurrences": 1,
+    "prologue": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-large-unionized/record-db/DeviceState.prologue.14062985557092847525.18336829354283970353.mneme",
+    "epilogue": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-large-unionized/record-db/DeviceState.epilogue.14062985557092847525.18336829354283970353.mneme"
+  }
+]

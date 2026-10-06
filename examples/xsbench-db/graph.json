@@ -1,0 +1,3202 @@
+{
+ "nodes": [
+  {
+   "id": "xsbench-small-unionized",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "small",
+    "-G",
+    "unionized"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-small-unionized/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 50,
+   "end_line": 105,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#instance:18336829354283970353",
+   "kind": "kernel_instance",
+   "label": "18336829354283970353",
+   "grid": [
+    66407,
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ],
+   "shared_mem": 0,
+   "occurrences": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 52,
+   "first_line": 53,
+   "last_line": 55
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 56,
+   "last_line": 56
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 12,
+   "first_line": 59,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 5,
+   "first_line": 96,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 8,
+   "first_line": 104,
+   "last_line": 105
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 5,
+   "first_line": 98,
+   "last_line": 98
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then10",
+   "kind": "basic_block",
+   "label": "if.then10",
+   "instructions": 1,
+   "first_line": 102,
+   "last_line": 102
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.inc",
+   "kind": "basic_block",
+   "label": "for.inc",
+   "instructions": 4,
+   "first_line": 96,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:cleanup",
+   "kind": "basic_block",
+   "label": "cleanup",
+   "instructions": 1,
+   "first_line": 105,
+   "last_line": 105
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "device_function",
+   "label": "fast_forward_LCG(unsigned long, unsigned long)",
+   "name": "_Z16fast_forward_LCGmm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 342
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 349,
+   "last_line": 354
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 7,
+   "first_line": 354,
+   "last_line": 354
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 3,
+   "first_line": 356,
+   "last_line": 356
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 4,
+   "first_line": 358,
+   "last_line": 360
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 7,
+   "first_line": 354,
+   "last_line": 364
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 4,
+   "first_line": 367,
+   "last_line": 367
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "device_function",
+   "label": "LCG_random_double(unsigned long*)",
+   "name": "_Z17LCG_random_doublePm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 332
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 8,
+   "first_line": 338,
+   "last_line": 339
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "device_function",
+   "label": "pick_mat(unsigned long*)",
+   "name": "_Z8pick_matPm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 293
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "kind": "loop",
+   "label": "for.cond12",
+   "depth": 2
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 29,
+   "first_line": 303,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 4,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 1,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 1,
+   "first_line": 323,
+   "last_line": 323
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond12",
+   "kind": "basic_block",
+   "label": "for.cond12",
+   "instructions": 4,
+   "first_line": 323,
+   "last_line": 323
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup14",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup14",
+   "instructions": 2,
+   "first_line": 325,
+   "last_line": 325
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.body15",
+   "kind": "basic_block",
+   "label": "for.body15",
+   "instructions": 6,
+   "first_line": 323,
+   "last_line": 324
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 326,
+   "last_line": 326
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 1,
+   "first_line": 327,
+   "last_line": 327
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup",
+   "kind": "basic_block",
+   "label": "cleanup",
+   "instructions": 4,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.inc18",
+   "kind": "basic_block",
+   "label": "for.inc18",
+   "instructions": 2,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup19",
+   "kind": "basic_block",
+   "label": "cleanup19",
+   "instructions": 4,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.end21",
+   "kind": "basic_block",
+   "label": "for.end21",
+   "instructions": 1,
+   "first_line": 329,
+   "last_line": 329
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup22",
+   "kind": "basic_block",
+   "label": "cleanup22",
+   "instructions": 3,
+   "first_line": 330,
+   "last_line": 330
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "device_function",
+   "label": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
+   "name": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 193
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "kind": "loop",
+   "label": "for.cond7",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "kind": "loop",
+   "label": "for.cond22",
+   "depth": 2
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 3,
+   "first_line": 205,
+   "last_line": 205
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 3,
+   "first_line": 205,
+   "last_line": 205
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 2,
+   "first_line": 213,
+   "last_line": 213
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 5,
+   "first_line": 205,
+   "last_line": 206
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 3,
+   "first_line": 214,
+   "last_line": 214
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 2,
+   "first_line": 215,
+   "last_line": 215
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then3",
+   "kind": "basic_block",
+   "label": "if.then3",
+   "instructions": 5,
+   "first_line": 217,
+   "last_line": 219
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.end6",
+   "kind": "basic_block",
+   "label": "if.end6",
+   "instructions": 2,
+   "first_line": 231,
+   "last_line": 231
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond7",
+   "kind": "basic_block",
+   "label": "for.cond7",
+   "instructions": 6,
+   "first_line": 231,
+   "last_line": 231
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup11",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup11",
+   "instructions": 1,
+   "first_line": 242,
+   "last_line": 242
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body13",
+   "kind": "basic_block",
+   "label": "for.body13",
+   "instructions": 11,
+   "first_line": 233,
+   "last_line": 239
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond22",
+   "kind": "basic_block",
+   "label": "for.cond22",
+   "instructions": 3,
+   "first_line": 239,
+   "last_line": 239
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup24",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup24",
+   "instructions": 3,
+   "first_line": 231,
+   "last_line": 241
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body25",
+   "kind": "basic_block",
+   "label": "for.body25",
+   "instructions": 10,
+   "first_line": 239,
+   "last_line": 240
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "kind": "device_function",
+   "label": "grid_search(long, double, double*)",
+   "name": "_Z11grid_searchldPd",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 247
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "kind": "loop",
+   "label": "while.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 250,
+   "last_line": 254
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 5,
+   "first_line": 249,
+   "last_line": 254
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 6,
+   "first_line": 256,
+   "last_line": 258
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 259,
+   "last_line": 259
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 1,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 4,
+   "first_line": 254,
+   "last_line": 263
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 1,
+   "first_line": 266,
+   "last_line": 266
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "device_function",
+   "label": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
+   "name": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 108
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 119,
+   "last_line": 119
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 7,
+   "first_line": 122,
+   "last_line": 126
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then3",
+   "kind": "basic_block",
+   "label": "if.then3",
+   "instructions": 4,
+   "first_line": 127,
+   "last_line": 127
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 3,
+   "first_line": 129,
+   "last_line": 129
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else12",
+   "kind": "basic_block",
+   "label": "if.else12",
+   "instructions": 2,
+   "first_line": 131,
+   "last_line": 131
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then14",
+   "kind": "basic_block",
+   "label": "if.then14",
+   "instructions": 9,
+   "first_line": 135,
+   "last_line": 135
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then22",
+   "kind": "basic_block",
+   "label": "if.then22",
+   "instructions": 5,
+   "first_line": 136,
+   "last_line": 136
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else33",
+   "kind": "basic_block",
+   "label": "if.else33",
+   "instructions": 4,
+   "first_line": 138,
+   "last_line": 138
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else44",
+   "kind": "basic_block",
+   "label": "if.else44",
+   "instructions": 9,
+   "first_line": 143,
+   "last_line": 147
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then52",
+   "kind": "basic_block",
+   "label": "if.then52",
+   "instructions": 3,
+   "first_line": 148,
+   "last_line": 148
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else55",
+   "kind": "basic_block",
+   "label": "if.else55",
+   "instructions": 7,
+   "first_line": 150,
+   "last_line": 150
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end62",
+   "kind": "basic_block",
+   "label": "if.end62",
+   "instructions": 12,
+   "first_line": 155,
+   "last_line": 158
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then75",
+   "kind": "basic_block",
+   "label": "if.then75",
+   "instructions": 1,
+   "first_line": 159,
+   "last_line": 159
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else76",
+   "kind": "basic_block",
+   "label": "if.else76",
+   "instructions": 2,
+   "first_line": 160,
+   "last_line": 160
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then78",
+   "kind": "basic_block",
+   "label": "if.then78",
+   "instructions": 3,
+   "first_line": 161,
+   "last_line": 161
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else81",
+   "kind": "basic_block",
+   "label": "if.else81",
+   "instructions": 4,
+   "first_line": 163,
+   "last_line": 163
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end90",
+   "kind": "basic_block",
+   "label": "if.end90",
+   "instructions": 5,
+   "first_line": 165,
+   "last_line": 165
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then94",
+   "kind": "basic_block",
+   "label": "if.then94",
+   "instructions": 4,
+   "first_line": 166,
+   "last_line": 166
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else101",
+   "kind": "basic_block",
+   "label": "if.else101",
+   "instructions": 3,
+   "first_line": 168,
+   "last_line": 168
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end107",
+   "kind": "basic_block",
+   "label": "if.end107",
+   "instructions": 2,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end109",
+   "kind": "basic_block",
+   "label": "if.end109",
+   "instructions": 52,
+   "first_line": 171,
+   "last_line": 190
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "device_function",
+   "label": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
+   "name": "_Z19grid_search_nuclideldP16NuclideGridPointll",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 270
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "kind": "loop",
+   "label": "while.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 275,
+   "last_line": 277
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 5,
+   "first_line": 272,
+   "last_line": 277
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 6,
+   "first_line": 279,
+   "last_line": 281
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 282,
+   "last_line": 282
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 1,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 4,
+   "first_line": 277,
+   "last_line": 286
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 1,
+   "first_line": 289,
+   "last_line": 289
+  },
+  {
+   "id": "xsbench-small-unionized/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-small-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  },
+  {
+   "id": "xsbench-small-hash",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "small",
+    "-G",
+    "hash"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-small-hash/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-small-hash/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-small-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": null,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-small-hash/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-small-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  },
+  {
+   "id": "xsbench-small-nuclide",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "small",
+    "-G",
+    "nuclide"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-small-nuclide/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-small-nuclide/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-small-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": null,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-small-nuclide/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-small-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  },
+  {
+   "id": "xsbench-large-unionized",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "large",
+    "-G",
+    "unionized"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-large-unionized/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 50,
+   "end_line": 105,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#instance:18336829354283970353",
+   "kind": "kernel_instance",
+   "label": "18336829354283970353",
+   "grid": [
+    66407,
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ],
+   "shared_mem": 0,
+   "occurrences": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 52,
+   "first_line": 53,
+   "last_line": 55
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 56,
+   "last_line": 56
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 12,
+   "first_line": 59,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 5,
+   "first_line": 96,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 8,
+   "first_line": 104,
+   "last_line": 105
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 5,
+   "first_line": 98,
+   "last_line": 98
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then10",
+   "kind": "basic_block",
+   "label": "if.then10",
+   "instructions": 1,
+   "first_line": 102,
+   "last_line": 102
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.inc",
+   "kind": "basic_block",
+   "label": "for.inc",
+   "instructions": 4,
+   "first_line": 96,
+   "last_line": 96
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:cleanup",
+   "kind": "basic_block",
+   "label": "cleanup",
+   "instructions": 1,
+   "first_line": 105,
+   "last_line": 105
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "device_function",
+   "label": "fast_forward_LCG(unsigned long, unsigned long)",
+   "name": "_Z16fast_forward_LCGmm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 342
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 349,
+   "last_line": 354
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 7,
+   "first_line": 354,
+   "last_line": 354
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 3,
+   "first_line": 356,
+   "last_line": 356
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 4,
+   "first_line": 358,
+   "last_line": 360
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 7,
+   "first_line": 354,
+   "last_line": 364
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 4,
+   "first_line": 367,
+   "last_line": 367
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "device_function",
+   "label": "LCG_random_double(unsigned long*)",
+   "name": "_Z17LCG_random_doublePm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 332
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 8,
+   "first_line": 338,
+   "last_line": 339
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "device_function",
+   "label": "pick_mat(unsigned long*)",
+   "name": "_Z8pick_matPm",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 293
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "kind": "loop",
+   "label": "for.cond12",
+   "depth": 2
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 29,
+   "first_line": 303,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 4,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 1,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 1,
+   "first_line": 323,
+   "last_line": 323
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond12",
+   "kind": "basic_block",
+   "label": "for.cond12",
+   "instructions": 4,
+   "first_line": 323,
+   "last_line": 323
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup14",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup14",
+   "instructions": 2,
+   "first_line": 325,
+   "last_line": 325
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.body15",
+   "kind": "basic_block",
+   "label": "for.body15",
+   "instructions": 6,
+   "first_line": 323,
+   "last_line": 324
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 326,
+   "last_line": 326
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 1,
+   "first_line": 327,
+   "last_line": 327
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup",
+   "kind": "basic_block",
+   "label": "cleanup",
+   "instructions": 4,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.inc18",
+   "kind": "basic_block",
+   "label": "for.inc18",
+   "instructions": 2,
+   "first_line": 320,
+   "last_line": 320
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup19",
+   "kind": "basic_block",
+   "label": "cleanup19",
+   "instructions": 4,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.end21",
+   "kind": "basic_block",
+   "label": "for.end21",
+   "instructions": 1,
+   "first_line": 329,
+   "last_line": 329
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup22",
+   "kind": "basic_block",
+   "label": "cleanup22",
+   "instructions": 3,
+   "first_line": 330,
+   "last_line": 330
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "device_function",
+   "label": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
+   "name": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 193
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "kind": "loop",
+   "label": "for.cond7",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "kind": "loop",
+   "label": "for.cond22",
+   "depth": 2
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "kind": "loop",
+   "label": "for.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 3,
+   "first_line": 205,
+   "last_line": 205
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond",
+   "kind": "basic_block",
+   "label": "for.cond",
+   "instructions": 3,
+   "first_line": 205,
+   "last_line": 205
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup",
+   "instructions": 2,
+   "first_line": 213,
+   "last_line": 213
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body",
+   "kind": "basic_block",
+   "label": "for.body",
+   "instructions": 5,
+   "first_line": 205,
+   "last_line": 206
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 3,
+   "first_line": 214,
+   "last_line": 214
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 2,
+   "first_line": 215,
+   "last_line": 215
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then3",
+   "kind": "basic_block",
+   "label": "if.then3",
+   "instructions": 5,
+   "first_line": 217,
+   "last_line": 219
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.end6",
+   "kind": "basic_block",
+   "label": "if.end6",
+   "instructions": 2,
+   "first_line": 231,
+   "last_line": 231
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond7",
+   "kind": "basic_block",
+   "label": "for.cond7",
+   "instructions": 6,
+   "first_line": 231,
+   "last_line": 231
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup11",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup11",
+   "instructions": 1,
+   "first_line": 242,
+   "last_line": 242
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body13",
+   "kind": "basic_block",
+   "label": "for.body13",
+   "instructions": 11,
+   "first_line": 233,
+   "last_line": 239
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond22",
+   "kind": "basic_block",
+   "label": "for.cond22",
+   "instructions": 3,
+   "first_line": 239,
+   "last_line": 239
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup24",
+   "kind": "basic_block",
+   "label": "for.cond.cleanup24",
+   "instructions": 3,
+   "first_line": 231,
+   "last_line": 241
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body25",
+   "kind": "basic_block",
+   "label": "for.body25",
+   "instructions": 10,
+   "first_line": 239,
+   "last_line": 240
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "kind": "device_function",
+   "label": "grid_search(long, double, double*)",
+   "name": "_Z11grid_searchldPd",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 247
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "kind": "loop",
+   "label": "while.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 250,
+   "last_line": 254
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 5,
+   "first_line": 249,
+   "last_line": 254
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 6,
+   "first_line": 256,
+   "last_line": 258
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 259,
+   "last_line": 259
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 1,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 4,
+   "first_line": 254,
+   "last_line": 263
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 1,
+   "first_line": 266,
+   "last_line": 266
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "device_function",
+   "label": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
+   "name": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 108
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 119,
+   "last_line": 119
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 7,
+   "first_line": 122,
+   "last_line": 126
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then3",
+   "kind": "basic_block",
+   "label": "if.then3",
+   "instructions": 4,
+   "first_line": 127,
+   "last_line": 127
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 3,
+   "first_line": 129,
+   "last_line": 129
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else12",
+   "kind": "basic_block",
+   "label": "if.else12",
+   "instructions": 2,
+   "first_line": 131,
+   "last_line": 131
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then14",
+   "kind": "basic_block",
+   "label": "if.then14",
+   "instructions": 9,
+   "first_line": 135,
+   "last_line": 135
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then22",
+   "kind": "basic_block",
+   "label": "if.then22",
+   "instructions": 5,
+   "first_line": 136,
+   "last_line": 136
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else33",
+   "kind": "basic_block",
+   "label": "if.else33",
+   "instructions": 4,
+   "first_line": 138,
+   "last_line": 138
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else44",
+   "kind": "basic_block",
+   "label": "if.else44",
+   "instructions": 9,
+   "first_line": 143,
+   "last_line": 147
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then52",
+   "kind": "basic_block",
+   "label": "if.then52",
+   "instructions": 3,
+   "first_line": 148,
+   "last_line": 148
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else55",
+   "kind": "basic_block",
+   "label": "if.else55",
+   "instructions": 7,
+   "first_line": 150,
+   "last_line": 150
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end62",
+   "kind": "basic_block",
+   "label": "if.end62",
+   "instructions": 12,
+   "first_line": 155,
+   "last_line": 158
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then75",
+   "kind": "basic_block",
+   "label": "if.then75",
+   "instructions": 1,
+   "first_line": 159,
+   "last_line": 159
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else76",
+   "kind": "basic_block",
+   "label": "if.else76",
+   "instructions": 2,
+   "first_line": 160,
+   "last_line": 160
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then78",
+   "kind": "basic_block",
+   "label": "if.then78",
+   "instructions": 3,
+   "first_line": 161,
+   "last_line": 161
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else81",
+   "kind": "basic_block",
+   "label": "if.else81",
+   "instructions": 4,
+   "first_line": 163,
+   "last_line": 163
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end90",
+   "kind": "basic_block",
+   "label": "if.end90",
+   "instructions": 5,
+   "first_line": 165,
+   "last_line": 165
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then94",
+   "kind": "basic_block",
+   "label": "if.then94",
+   "instructions": 4,
+   "first_line": 166,
+   "last_line": 166
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else101",
+   "kind": "basic_block",
+   "label": "if.else101",
+   "instructions": 3,
+   "first_line": 168,
+   "last_line": 168
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end107",
+   "kind": "basic_block",
+   "label": "if.end107",
+   "instructions": 2,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end109",
+   "kind": "basic_block",
+   "label": "if.end109",
+   "instructions": 52,
+   "first_line": 171,
+   "last_line": 190
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "device_function",
+   "label": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
+   "name": "_Z19grid_search_nuclideldP16NuclideGridPointll",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 270
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "kind": "loop",
+   "label": "while.cond",
+   "depth": 1
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:entry",
+   "kind": "basic_block",
+   "label": "entry",
+   "instructions": 2,
+   "first_line": 275,
+   "last_line": 277
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.cond",
+   "kind": "basic_block",
+   "label": "while.cond",
+   "instructions": 5,
+   "first_line": 272,
+   "last_line": 277
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.body",
+   "kind": "basic_block",
+   "label": "while.body",
+   "instructions": 6,
+   "first_line": 279,
+   "last_line": 281
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.then",
+   "kind": "basic_block",
+   "label": "if.then",
+   "instructions": 1,
+   "first_line": 282,
+   "last_line": 282
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.else",
+   "kind": "basic_block",
+   "label": "if.else",
+   "instructions": 1,
+   "first_line": null,
+   "last_line": null
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.end",
+   "kind": "basic_block",
+   "label": "if.end",
+   "instructions": 4,
+   "first_line": 277,
+   "last_line": 286
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.end",
+   "kind": "basic_block",
+   "label": "while.end",
+   "instructions": 1,
+   "first_line": 289,
+   "last_line": 289
+  },
+  {
+   "id": "xsbench-large-unionized/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-large-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  },
+  {
+   "id": "xsbench-large-hash",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "large",
+    "-G",
+    "hash"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-large-hash/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-large-hash/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-large-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": null,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-large-hash/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-large-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  },
+  {
+   "id": "xsbench-large-nuclide",
+   "kind": "program",
+   "label": "XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "arguments": [
+    "-m",
+    "event",
+    "-s",
+    "large",
+    "-G",
+    "nuclide"
+   ],
+   "gpu_arch": "gfx942",
+   "hostname": "tuolumne2152"
+  },
+  {
+   "id": "xsbench-large-nuclide/files/Main.cpp",
+   "kind": "source_file",
+   "label": "Main.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+  },
+  {
+   "id": "xsbench-large-nuclide/files/Simulation.cpp",
+   "kind": "source_file",
+   "label": "Simulation.cpp",
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+  },
+  {
+   "id": "xsbench-large-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "kernel_function",
+   "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
+   "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": null,
+   "isa_instructions": 814
+  },
+  {
+   "id": "xsbench-large-nuclide/files/Main.cpp/main",
+   "kind": "host_function",
+   "label": "main",
+   "name": "main",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "line": 3
+  },
+  {
+   "id": "xsbench-large-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "host_function",
+   "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "line": 16
+  }
+ ],
+ "edges": [
+  {
+   "source": "xsbench-small-unionized",
+   "target": "xsbench-small-unionized/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized",
+   "target": "xsbench-small-unionized/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#instance:18336829354283970353",
+   "kind": "has_instance"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then10",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.inc",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup14",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.body15",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.inc18",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup19",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:for.end21",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat#block:cleanup22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then3",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.end6",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond7",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup11",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body13",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup24",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body25",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then3",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then14",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else33",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else44",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then52",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else55",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end62",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then75",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else76",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then78",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else81",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end90",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then94",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else101",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end107",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end109",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Main.cpp",
+   "target": "xsbench-small-unionized/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 62,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 65,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 66,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 71,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 317,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 214,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 236,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 122,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 163,
+   "launches": null
+  },
+  {
+   "source": "xsbench-small-unionized/files/Main.cpp/main",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-small-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-small-hash",
+   "target": "xsbench-small-hash/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-hash",
+   "target": "xsbench-small-hash/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-hash/files/Simulation.cpp",
+   "target": "xsbench-small-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-hash/files/Main.cpp",
+   "target": "xsbench-small-hash/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-hash/files/Simulation.cpp",
+   "target": "xsbench-small-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-hash/files/Main.cpp/main",
+   "target": "xsbench-small-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-small-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-small-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-small-nuclide",
+   "target": "xsbench-small-nuclide/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-nuclide",
+   "target": "xsbench-small-nuclide/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-nuclide/files/Simulation.cpp",
+   "target": "xsbench-small-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-nuclide/files/Main.cpp",
+   "target": "xsbench-small-nuclide/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-nuclide/files/Simulation.cpp",
+   "target": "xsbench-small-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-small-nuclide/files/Main.cpp/main",
+   "target": "xsbench-small-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-small-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-small-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-unionized",
+   "target": "xsbench-large-unionized/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized",
+   "target": "xsbench-large-unionized/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#instance:18336829354283970353",
+   "kind": "has_instance"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:if.then10",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:for.inc",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline#block:cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.cond.cleanup14",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond12",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.body15",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.inc18",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup19",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:for.end21",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat#block:cleanup22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.then3",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:if.end6",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond7",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup11",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body13",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond7",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.cond.cleanup24",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#loop:for.cond22",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs#block:for.body25",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then3",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else12",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then14",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then22",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else33",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else44",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then52",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else55",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end62",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then75",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else76",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then78",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else81",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end90",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.then94",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.else101",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end107",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs#block:if.end109",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:entry",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.cond",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.body",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.then",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.else",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#loop:while.cond",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:if.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide#block:while.end",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Main.cpp",
+   "target": "xsbench-large-unionized/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/fast_forward_LCG",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 62,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 65,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 66,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 71,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/pick_mat",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/LCG_random_double",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 317,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 214,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_macro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 236,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 122,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/calculate_micro_xs",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/grid_search_nuclide",
+   "kind": "calls",
+   "origin": "ir",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 163,
+   "launches": null
+  },
+  {
+   "source": "xsbench-large-unionized/files/Main.cpp/main",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-large-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-hash",
+   "target": "xsbench-large-hash/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-hash",
+   "target": "xsbench-large-hash/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-hash/files/Simulation.cpp",
+   "target": "xsbench-large-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-hash/files/Main.cpp",
+   "target": "xsbench-large-hash/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-hash/files/Simulation.cpp",
+   "target": "xsbench-large-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-hash/files/Main.cpp/main",
+   "target": "xsbench-large-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-hash/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-large-hash/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-nuclide",
+   "target": "xsbench-large-nuclide/files/Main.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-nuclide",
+   "target": "xsbench-large-nuclide/files/Simulation.cpp",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-nuclide/files/Simulation.cpp",
+   "target": "xsbench-large-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-nuclide/files/Main.cpp",
+   "target": "xsbench-large-nuclide/files/Main.cpp/main",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-nuclide/files/Simulation.cpp",
+   "target": "xsbench-large-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "contains"
+  },
+  {
+   "source": "xsbench-large-nuclide/files/Main.cpp/main",
+   "target": "xsbench-large-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "kind": "calls",
+   "origin": "stack",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_line": 65,
+   "launches": 1
+  },
+  {
+   "source": "xsbench-large-nuclide/files/Simulation.cpp/run_event_based_simulation_baseline",
+   "target": "xsbench-large-nuclide/files/Simulation.cpp/xs_lookup_kernel_baseline",
+   "kind": "launches",
+   "origin": "launch",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_line": 26,
+   "launches": 1
+  }
+ ]
+}
