@@ -81,10 +81,9 @@ Useful `record` options:
   `examples/hip_vec_add`.
 - `examples/ice4hpc-xsbench.sh <work> [sizes]` builds XSBench (HIP) at the
   commit used by the [ICE4HPC dataset](https://github.com/llnl/ice4hpc_data)
-  and records the dataset's GPU configurations (`-m event`, grid types
-  `unionized`, `hash`, `nuclide`).
+  and records it with `-m event -G unionized`.
 - `examples/xsbench-db/` is the database that script produced for the `small`
-  and `large` sizes on Tuolumne (MI300A). It includes `Simulation.cpp`, which
+  size on Tuolumne (MI300A). It includes `Simulation.cpp`, which
   Mneme copied when it recorded the kernel. Its absolute paths (sources, Mneme
   records, snapshots) point to where it was recorded; the Mneme recordings
   themselves are not in the repository.
@@ -118,7 +117,6 @@ xsbench-db/
 │   │       │   └── instances.json  launch configurations Mneme recorded
 │   │       ├── calculate_macro_xs/{function.json, ir.ll}
 │   │       └── pick_mat/{function.json, ir.ll}
-└── xsbench-small-hash/ ...
 ```
 
 Every function directory has a `function.json`:
@@ -184,10 +182,6 @@ jq -r '.name as $f | .calls[]? | "\($f) -> \(.function) @\(.line)"' \
 jq -r 'select(.body) | "\(.name): depth \([.. | objects | select(.loop) | .depth] | max // 0), "
   + "\([.. | objects | select(.block) | .instructions] | add) IR instructions"' \
   xsbench-small-unionized/files/*/*/function.json
-
-# The same kernel across inputs.
-jq -r '"\(input_filename | split("/")[0]): \(.isa_instructions) instructions"' \
-  */files/*/xs_lookup_kernel_baseline/function.json
 ```
 
 `graph.json` (`{"nodes": [...], "edges": [...]}`) holds the same hierarchy for
@@ -215,9 +209,6 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 - **Kernels recorded with `--no-mneme`** have no IR, source span or loops. Their
   file comes from the code object's line table, and `entry_line` is the line
   of their first instruction.
-- **Mneme aborts on zero-byte `hipMalloc`** ("Destroying memory descriptor
-  without releasing device memory ... size=0"). XSBench's `hash` and `nuclide`
-  grid types hit this, so the example records them with `--no-mneme`.
 - **Host lambdas have no scope or line** with `-gline-tables-only`: the
   debug info names their body `operator()`, and several host lambdas in one
   file end up as `operator()`, `operator()~2`, and so on. Build with `-g`.
