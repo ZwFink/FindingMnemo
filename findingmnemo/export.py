@@ -14,7 +14,6 @@ HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) are left out.
 
 import datetime
 import glob
-import hashlib
 import json
 import os
 import re
@@ -34,7 +33,8 @@ class _Kernel:
     record: Optional[dict] = None
     record_path: Optional[str] = None
     module_ir: Optional[str] = None
-    source: Optional[str] = None
+    # mneme.recorded_execution.KernelSource, read from Mneme's copy of the file.
+    source: Optional[object] = None
 
 
 @dataclass
@@ -86,27 +86,6 @@ def _demangle(symbols: List[str], llvm_bin: str) -> Dict[str, str]:
     return dict(zip(symbols, out))
 
 
-def _kernel_source(record: dict, record_dir: str) -> Optional[str]:
-    """Slice the kernel's lines from the recorded copy, verified by checksum."""
-    if "SourceLine" not in record:
-        return None
-    candidates = []
-    if record.get("SourceCopy"):
-        candidates.append(os.path.join(record_dir, record["SourceCopy"]))
-    candidates.append(record["SourceFile"])
-    for path in candidates:
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except OSError:
-            continue
-        if record.get("SourceMD5") and hashlib.md5(data).hexdigest() != record["SourceMD5"]:
-            continue
-        lines = data.decode(errors="replace").splitlines()
-        return "\n".join(lines[record["SourceLine"] - 1:record["SourceEndLine"]]) + "\n"
-    return None
-
-
 def _load_records(record_dir: str) -> List[Tuple[str, dict]]:
     records = []
     for path in sorted(glob.glob(os.path.join(record_dir, "*.json"))):
@@ -126,6 +105,8 @@ class _Program:
             self.run = json.load(f)
         self.functions: Dict[Tuple[str, str], _Function] = {}
         self.edges: Dict[tuple, _Edge] = {}
+        # Source file -> the copy that `mneme record --copy-source` made of it.
+        self.source_copies: Dict[str, str] = {}
         self.dir = ""
 
         record_dir = os.path.join(run_dir, "record-db")
@@ -197,8 +178,12 @@ class _Program:
                                record.get("SourceFile") or code.file, record.get("SourceLine"))
         if record.get("SourceLine"):
             kernel.line, kernel.end_line = record["SourceLine"], record.get("SourceEndLine")
-        kernel.kernel = _Kernel(code, record, record_path, "\n".join(ir_texts),
-                                _kernel_source(record, record_dir))
+        # Imported here so that runs recorded with --no-mneme export without Mneme.
+        from mneme.recorded_execution import RecordedExecution
+        source = RecordedExecution.from_json(record_path).kernel_source()
+        if source:
+            self.source_copies[kernel.file] = source.file
+        kernel.kernel = _Kernel(code, record, record_path, "\n".join(ir_texts), source)
 
     def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
@@ -435,7 +420,7 @@ def _write_function(prog: _Program, fn: _Function, out: str) -> None:
         _write_text(os.path.join(fn_dir, "ir.ll"), fn.ir_fn.text)
     if k:
         ext = os.path.splitext(fn.file or "")[1] or ".txt"
-        _write_text(os.path.join(fn_dir, "source" + ext), k.source)
+        _write_text(os.path.join(fn_dir, "source" + ext), k.source and k.source.text)
         _write_text(os.path.join(fn_dir, "module.ll"), k.module_ir)
         _write_text(os.path.join(fn_dir, "isa.s"), k.code.isa)
         if k.record and k.record.get("instances"):
@@ -479,6 +464,9 @@ def _write_program(prog: _Program, out: str) -> None:
     for path, file_dir in file_dirs.items():
         os.makedirs(os.path.join(out, file_dir))
         _write_json(os.path.join(out, file_dir, "file.json"), {"path": path})
+        if path in prog.source_copies:
+            shutil.copyfile(prog.source_copies[path],
+                            os.path.join(out, file_dir, "source" + os.path.splitext(path)[1]))
     for fn in prog.functions.values():
         _write_function(prog, fn, out)
 

@@ -27,12 +27,13 @@ to a kernel launch), device edges are *static* (from the recorded IR).
    Mneme-built applications launch) and aggregates the host stack of every
    launch by kernel and launch configuration. It writes
    `stacks/launches.<pid>.json` at exit.
-2. **`mneme record`** runs in the same process and records each kernel: its
-   LLVM IR, launch instances, memory snapshots, and the source file and line
-   range that define it.
+2. **`mneme record --copy-source`** runs in the same process and records each
+   kernel: its LLVM IR, launch instances, memory snapshots, the source file and
+   line range that define it, and a copy of that source file.
 3. **`findingmnemo export`** symbolizes the stacks with `llvm-symbolizer`,
    parses the recorded IR (functions, calls, loops via `opt print<loops>`,
-   basic blocks with source lines), disassembles each kernel from the
+   basic blocks with source lines), reads each kernel's source through
+   Mneme's `RecordedExecution.kernel_source()`, disassembles each kernel from the
    application's embedded code object, and writes a database directory that
    mirrors the hierarchy, plus a nodes/edges JSON graph.
 
@@ -46,7 +47,8 @@ to a kernel launch), device edges are *static* (from the recorded IR).
   `-g`: it gives host functions their definition line and host lambdas a name,
   and leaves the device ISA and the recorded IR unchanged (checked on
   XSBench). `-gline-tables-only`, which `add_mneme()` uses, also works.
-- Python 3.8+ with only the standard library.
+- Python 3.8+. Exporting runs recorded with Mneme imports Mneme's Python
+  package (`mneme.recorded_execution`); everything else is the standard library.
 
 ## Quick start
 
@@ -82,7 +84,8 @@ Useful `record` options:
   and records the dataset's GPU configurations (`-m event`, grid types
   `unionized`, `hash`, `nuclide`).
 - `examples/xsbench-db/` is the database that script produced for the `small`
-  and `large` sizes on Tuolumne (MI300A). Its absolute paths (sources, Mneme
+  and `large` sizes on Tuolumne (MI300A). It includes `Simulation.cpp`, which
+  Mneme copied when it recorded the kernel. Its absolute paths (sources, Mneme
   records, snapshots) point to where it was recorded; the Mneme recordings
   themselves are not in the repository.
 
@@ -104,10 +107,11 @@ xsbench-db/
 │   │   │   ├── file.json       full path of the source file
 │   │   │   └── main/function.json
 │   │   └── Simulation.cpp/
+│   │       ├── source.cpp      the file as Mneme recorded it
 │   │       ├── run_event_based_simulation_baseline/function.json
 │   │       ├── xs_lookup_kernel_baseline/
 │   │       │   ├── function.json   lines 50-105, calls, launched_by, loop/block tree
-│   │       │   ├── source.cpp      the kernel's source lines
+│   │       │   ├── source.cpp      the kernel's lines of that file
 │   │       │   ├── ir.ll           the kernel's LLVM IR
 │   │       │   ├── module.ll       the whole recorded module
 │   │       │   ├── isa.s           gfx942 disassembly
@@ -221,6 +225,9 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   instantiated with an application lambda is filed under the library header
   that defines the kernel template, and its lambda body under the
   application file.
+- **Only files that define recorded kernels are copied.** Mneme copies the
+  translation unit of each kernel it records; other files, such as those with
+  only host code, are referenced by path in `file.json`.
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.
