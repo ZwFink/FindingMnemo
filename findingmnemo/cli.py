@@ -78,7 +78,7 @@ def export_cmd(args) -> int:
     if len(args.run_dirs) > 1 and not args.output:
         sys.exit("findingmnemo export: pass -o when exporting several run directories")
     out = args.output or os.path.join(args.run_dirs[0], "findingmnemo-db")
-    export.build(args.run_dirs, out, args.llvm_bin, args.include_runtime)
+    export.build(args.run_dirs, out, args.llvm_bin)
     print(f"database: {out}")
     return 0
 
@@ -103,10 +103,8 @@ def main(argv=None) -> int:
                      help="run directories; each becomes one program in the database")
     exp.add_argument("-o", "--output",
                      help="database directory to create (default: <run_dir>/findingmnemo-db)")
-    exp.add_argument("--include-runtime", action="store_true",
-                     help="keep HIP runtime helper functions in graph.json (they are always in runtime/)")
     exp.add_argument("--llvm-bin", default=_default_llvm_bin(),
-                     help="directory with llvm-dis, opt, llvm-symbolizer, llvm-objdump and "
+                     help="directory with llvm-dis, opt, llvm-symbolizer, llvm-cxxfilt, llvm-objdump and "
                           "clang-offload-bundler (default: Mneme's LLVM)")
     exp.set_defaults(func=export_cmd)
 

@@ -8,7 +8,8 @@ a directory tree that mirrors the program hierarchy, so it can be browsed with
     <db>/index.json, graph.json
     <db>/<program>/program.json, launches.json
     <db>/<program>/files/<source file>/<function>/function.json, ir.ll, ...
-    <db>/<program>/runtime/...   HIP runtime helpers called by device code
+
+HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) are left out.
 """
 
 import datetime
@@ -18,6 +19,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -39,10 +41,13 @@ class _Kernel:
 class _Function:
     # host, kernel or device.
     kind: str
-    # Linkage name for device code; host functions only have the demangled
-    # name the symbolizer reports.
+    # Linkage name for device code; host functions only have the name the
+    # symbolizer reports.
     name: str
     display_name: str
+    # Name from the debug info, which clang writes the same way for host and
+    # device code, e.g. ``forall<(lambda at app.cpp:28:13)>``.
+    debug_name: Optional[str]
     file: Optional[str]
     line: Optional[int]
     end_line: Optional[int] = None
@@ -50,10 +55,6 @@ class _Function:
     kernel: Optional[_Kernel] = None
     # Directory relative to the program directory, assigned before writing.
     path: str = ""
-
-    @property
-    def is_runtime(self) -> bool:
-        return _is_runtime_function(self.name, self.file)
 
 
 @dataclass
@@ -77,6 +78,12 @@ def _is_runtime_function(name: str, file: Optional[str]) -> bool:
     if name.startswith(_RUNTIME_PREFIXES):
         return True
     return bool(file) and "/include/hip/" in file
+
+
+def _demangle(symbols: List[str], llvm_bin: str) -> Dict[str, str]:
+    out = subprocess.run([f"{llvm_bin}/llvm-cxxfilt"], input="\n".join(symbols),
+                         capture_output=True, text=True, check=True).stdout.splitlines()
+    return dict(zip(symbols, out))
 
 
 def _kernel_source(record: dict, record_dir: str) -> Optional[str]:
@@ -127,20 +134,28 @@ class _Program:
         kernel_names = sorted({r["KernelName"] for _, r in records}
                               | {p.kernel for p in self.launch_paths})
         self.gpu_arch, code = isa.disassemble_kernels(self.run["executable"], kernel_names, llvm_bin)
+        self.demangled = _demangle(kernel_names, llvm_bin)
 
         for path, record in records:
             self._add_recorded_kernel(record, path, record_dir, code[record["KernelName"]], llvm_bin)
         for launch in self.launch_paths:
             self._add_launch(launch, code[launch.kernel])
 
+        self.runtime = {fn.name for fn in self.functions.values()
+                        if _is_runtime_function(fn.name, fn.file)}
+        self.functions = {key: fn for key, fn in self.functions.items() if key[1] not in self.runtime}
+        self.edges = {key: e for key, e in self.edges.items()
+                      if e.caller.name not in self.runtime and e.callee.name not in self.runtime}
+
     @property
     def name(self) -> str:
         return self.run.get("name") or os.path.basename(self.run["executable"])
 
-    def function(self, kind: str, name: str, display_name=None, file=None, line=None) -> _Function:
+    def function(self, kind: str, name: str, display_name=None, debug_name=None,
+                 file=None, line=None) -> _Function:
         key = (kind, name)
         if key not in self.functions:
-            self.functions[key] = _Function(kind, name, display_name or name,
+            self.functions[key] = _Function(kind, name, display_name or name, debug_name,
                                             os.path.normpath(file) if file else None, line)
         return self.functions[key]
 
@@ -162,10 +177,11 @@ class _Program:
             parsed.update(functions)
 
         name = record["KernelName"]
+        self.demangled.update(_demangle([f for f in parsed if f not in self.demangled], llvm_bin))
         for fn in parsed.values():
             kind = "kernel" if fn.name == name else "device"
-            display = record["DemangledName"] if kind == "kernel" else fn.display_name
-            node = self.function(kind, fn.name, display, fn.file, fn.line)
+            node = self.function(kind, fn.name, self.demangled[fn.name], fn.display_name,
+                                 fn.file, fn.line)
             # Device functions shared by several kernels appear in each module.
             if node.ir_fn is None:
                 node.ir_fn = fn
@@ -177,7 +193,7 @@ class _Program:
                 if callee:
                     self.add_edge(caller, callee, "ir", *(site or (None, None)))
 
-        kernel = self.function("kernel", name, record["DemangledName"],
+        kernel = self.function("kernel", name, record["DemangledName"], code.name,
                                record.get("SourceFile") or code.file, record.get("SourceLine"))
         if record.get("SourceLine"):
             kernel.line, kernel.end_line = record["SourceLine"], record.get("SourceEndLine")
@@ -185,11 +201,12 @@ class _Program:
                                 _kernel_source(record, record_dir))
 
     def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
-        kernel = self.function("kernel", launch.kernel, code.name, code.file)
+        kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
+                               code.file)
         if kernel.kernel is None:
             # Launched but not recorded by Mneme, e.g. with --no-mneme.
             kernel.kernel = _Kernel(code)
-        frames = [self.function("host", f.function, f.function, f.file, f.start_line)
+        frames = [self.function("host", f.function, f.function, f.function, f.file, f.start_line)
                   for f in launch.frames]
         for i in range(len(frames) - 1):
             site = launch.frames[i]
@@ -199,26 +216,92 @@ class _Program:
             self.add_edge(frames[-1], kernel, "launch", site.file, site.line, launch.count)
 
 
+_OPERATOR = re.compile(r"operator(\(\)|<<=?|>>=?|<=>|<=?|>=?|->\*?)")
+_BRACKETS = {"<": 1, "(": 1, "{": 1, ">": -1, ")": -1, "}": -1}
+# A device lambda's call operator, as demangled: main::'lambda'(int)::operator().
+_LAMBDA_CALL = re.compile(r"'lambda\d*'\([^()]*\)::operator\(\)$")
+# A lambda in a debug-info name: forall<(lambda at app.cpp:28:13)>.
+_DEBUG_LAMBDA = re.compile(r"\(lambda at ([^():]+):(\d+):\d+\)")
+_DEMANGLED_LAMBDA = re.compile(r"'lambda(\d*)'\([^()]*\)")
+_LONG_NAME = 80
+
+
+def _depths(name: str) -> List[int]:
+    """Bracket depth before each character, ignoring brackets in operator names."""
+    masked = _OPERATOR.sub(lambda m: "x" * len(m.group(0)), name)
+    depths, depth = [], 0
+    for c in masked:
+        depths.append(depth)
+        depth += _BRACKETS.get(c, 0)
+    return depths
+
+
 def _short_name(name: str) -> str:
     """Drop the parameter list and return type from a demangled name."""
     name = re.sub(r"(\s+(const|volatile|&|&&))+$", "", name)
-    if name.endswith(")"):
-        depth = 0
-        for i in range(len(name) - 1, -1, -1):
-            depth += {")": 1, "(": -1}.get(name[i], 0)
-            if depth == 0:
-                name = name[:i] if i else name
-                break
-    depth, start = 0, 0
-    for i, c in enumerate(name):
-        depth += {"<": 1, ">": -1}.get(c, 0)
-        if c == " " and depth == 0:
-            start = i + 1
+    depths = _depths(name)
+    if name.endswith(")") and not name.endswith("operator()"):
+        start = max((i for i, c in enumerate(name) if c == "(" and depths[i] == 0), default=0)
+        name = name[:start] or name
+        depths = depths[:len(name)]
+    # The space before a qualifier inside a nested name, as in
+    # main::'lambda'(int)::operator()(int) const::'lambda'(), is not the end of
+    # a return type.
+    start = max((i + 1 for i, c in enumerate(name) if c == " " and depths[i] == 0
+                 and not name.startswith(("const", "volatile"), i + 1)), default=0)
     return name[start:] or name
 
 
+def _abbreviate_templates(name: str) -> str:
+    """Replace template arguments with the lambdas among them, or "..."."""
+    depths = _depths(name)
+    out, start = [], None
+    for i, c in enumerate(name):
+        if c == "<" and depths[i] == 0:
+            start = i
+        elif c == ">" and depths[i] == 1 and start is not None:
+            lambdas = re.findall(r"lambda@[\w.+-]+", name[start:i])
+            out.append("<" + (",".join(lambdas) or "...") + ">")
+            start = None
+        elif start is None:
+            out.append(c)
+    return "".join(out)
+
+
+def _lambda_lines(functions) -> Dict[str, int]:
+    """Map each lambda's demangled closure type to the line of its body."""
+    lines = {}
+    for fn in functions:
+        short = _short_name(fn.display_name)
+        if fn.line and _LAMBDA_CALL.search(short):
+            lines[short[:-len("::operator()")]] = fn.line
+    return lines
+
+
+def _dir_name(fn: _Function, lambda_lines: Dict[str, int]) -> str:
+    """A readable directory name; lambdas become lambda@<line>."""
+    if fn.line and _LAMBDA_CALL.search(_short_name(fn.display_name)):
+        return f"lambda@{fn.line}"
+    own_file = os.path.basename(fn.file or "")
+
+    def lambda_at(m):
+        file = os.path.basename(m.group(1))
+        return f"lambda@{m.group(2)}" if file == own_file else f"lambda@{file}-{m.group(2)}"
+
+    name = _short_name(fn.debug_name or fn.display_name)
+    # Nested lambdas' closure types contain their parents', so replace them first.
+    for closure in sorted(lambda_lines, key=len, reverse=True):
+        name = name.replace(closure, f"lambda@{lambda_lines[closure]}")
+    name = _DEMANGLED_LAMBDA.sub(r"lambda\1", _DEBUG_LAMBDA.sub(lambda_at, name))
+    if len(name) > _LONG_NAME:
+        name = _abbreviate_templates(name)
+    return _safe_name(name)
+
+
 def _safe_name(name: str) -> str:
-    name = re.sub(r"[^A-Za-z0-9._+-]+", "_", name.replace("::", ".")).rstrip("_")[:120]
+    """Make a name usable as a directory name on any file system."""
+    name = name.replace("::", ".").replace("<", "[").replace(">", "]").replace(", ", ",")
+    name = re.sub(r"[^A-Za-z0-9._+@,()\[\]-]+", "_", name).rstrip("_")[:120]
     return name if name and not name.startswith(".") else "_" + name
 
 
@@ -231,19 +314,19 @@ def _unique(path: str, used: set) -> str:
     return candidate
 
 
-def _assign_paths(prog: _Program) -> Dict[Tuple[str, Optional[str]], str]:
-    file_dirs: Dict[Tuple[str, Optional[str]], str] = {}
+def _assign_paths(prog: _Program) -> Dict[Optional[str], str]:
+    file_dirs: Dict[Optional[str], str] = {}
     used: set = set()
     order = sorted(prog.functions.values(), key=lambda f: (f.file or "", f.line or 0, f.name))
+    lambda_lines = _lambda_lines(order)
     for fn in order:
-        key = ("runtime" if fn.is_runtime else "files", fn.file)
-        if key not in file_dirs:
+        if fn.file not in file_dirs:
             base = os.path.basename(fn.file) if fn.file else "_unknown"
-            file_dirs[key] = _unique(f"{key[0]}/{_safe_name(base)}", used)
-        path = f"{file_dirs[key]}/{_safe_name(_short_name(fn.display_name))}"
+            file_dirs[fn.file] = _unique(f"files/{_safe_name(base)}", used)
+        path = f"{file_dirs[fn.file]}/{_dir_name(fn, lambda_lines)}"
         if path in used:
             # Overloads share a short name; the symbol tells them apart.
-            path = f"{file_dirs[key]}/{_safe_name(fn.name)}"
+            path = f"{file_dirs[fn.file]}/{_safe_name(fn.name)}"
         fn.path = _unique(path, used)
     return file_dirs
 
@@ -269,8 +352,10 @@ def _body(prog: _Program, fn: ir.Function) -> list:
         lines = _lines(block, fn.file)
         if lines:
             entry["lines"] = lines
-        if block.callees:
-            entry["calls"] = [_display(prog, c) for c in dict.fromkeys(block.callees)]
+        calls = [_display(prog, c) for c in dict.fromkeys(block.callees)
+                 if c not in prog.runtime and not _is_runtime_function(c, None)]
+        if calls:
+            entry["calls"] = calls
         (loops[containing[-1]]["body"] if containing else top).append(entry)
     return top
 
@@ -391,14 +476,14 @@ def _write_program(prog: _Program, out: str) -> None:
         "call_path": [{"function": f.function, "at": prog.functions[("host", f.function)].path,
                        "file": f.file, "line": f.line} for f in p.frames],
     } for p in prog.launch_paths])
-    for (_, path), file_dir in file_dirs.items():
+    for path, file_dir in file_dirs.items():
         os.makedirs(os.path.join(out, file_dir))
         _write_json(os.path.join(out, file_dir, "file.json"), {"path": path})
     for fn in prog.functions.values():
         _write_function(prog, fn, out)
 
 
-def _graph(prog: _Program, include_runtime: bool, nodes: list, edges: list) -> None:
+def _graph(prog: _Program, nodes: list, edges: list) -> None:
     """Add the program's hierarchy and call edges to a nodes/edges graph.
 
     Node ids are paths in the database directory, with ``#`` for loops, blocks
@@ -415,12 +500,12 @@ def _graph(prog: _Program, include_runtime: bool, nodes: list, edges: list) -> N
 
     node(prog.dir, "program", prog.name, executable=prog.run["executable"],
          arguments=prog.run["arguments"], gpu_arch=prog.gpu_arch, hostname=prog.run.get("hostname"))
-    visible = [f for f in prog.functions.values() if include_runtime or not f.is_runtime]
-    for file_dir, path in sorted({(os.path.dirname(f.path), f.file) for f in visible}):
-        node(f"{prog.dir}/{file_dir}", "source_file", os.path.basename(file_dir), path=path)
+    functions = list(prog.functions.values())
+    for file_dir, path in sorted({(os.path.dirname(f.path), f.file or "") for f in functions}):
+        node(f"{prog.dir}/{file_dir}", "source_file", os.path.basename(file_dir), path=path or None)
         edge(prog.dir, f"{prog.dir}/{file_dir}", "contains")
 
-    for fn in visible:
+    for fn in functions:
         attrs = {"name": fn.name, "file": fn.file, "line": fn.line}
         if fn.end_line:
             attrs["end_line"] = fn.end_line
@@ -453,8 +538,6 @@ def _graph(prog: _Program, include_runtime: bool, nodes: list, edges: list) -> N
             edge(loop_ids[containing[-1]] if containing else fn_id(fn), block_id, "contains")
 
     for e in prog.edges.values():
-        if not include_runtime and (e.caller.is_runtime or e.callee.is_runtime):
-            continue
         edge(fn_id(e.caller), fn_id(e.callee), "launches" if e.origin == "launch" else "calls",
              origin=e.origin, call_file=e.file, call_line=e.line, launches=e.launches)
 
@@ -475,7 +558,7 @@ def _prepare_output(out_dir: str) -> None:
         raise SystemExit(f"findingmnemo export: {out_dir} exists and is not a FindingMnemo database")
 
 
-def build(run_dirs: List[str], out_dir: str, llvm_bin: str, include_runtime: bool = False) -> str:
+def build(run_dirs: List[str], out_dir: str, llvm_bin: str) -> str:
     """Write the database for ``run_dirs`` to ``out_dir``, one program per run."""
     for run_dir in run_dirs:
         if not os.path.isfile(os.path.join(run_dir, "run.json")):
@@ -488,7 +571,7 @@ def build(run_dirs: List[str], out_dir: str, llvm_bin: str, include_runtime: boo
         prog = _Program(os.path.abspath(run_dir), llvm_bin)
         prog.dir = _unique(_safe_name(os.path.basename(os.path.normpath(prog.run_dir))), used)
         _write_program(prog, os.path.join(out_dir, prog.dir))
-        _graph(prog, include_runtime, nodes, edges)
+        _graph(prog, nodes, edges)
         index.append({"dir": prog.dir, "name": prog.name, "arguments": prog.run["arguments"],
                       "gpu_arch": prog.gpu_arch})
     with open(os.path.join(out_dir, "graph.json"), "w") as f:

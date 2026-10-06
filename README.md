@@ -42,7 +42,10 @@ to a kernel launch), device edges are *static* (from the recorded IR).
 - A Mneme install with Python support, from a branch that records kernel source
   (`record-source-file` or later). See `examples/env-tuolumne.sh`.
 - The application built for Mneme (`add_mneme()` in CMake, or the flags from
-  `mneme config cflags` / `ldflags` plus `-gline-tables-only` for Makefiles).
+  `mneme config cflags` / `ldflags` for Makefiles), with debug info. Prefer
+  `-g`: it gives host functions their definition line and host lambdas a name,
+  and leaves the device ISA and the recorded IR unchanged (checked on
+  XSBench). `-gline-tables-only`, which `add_mneme()` uses, also works.
 - Python 3.8+ with only the standard library.
 
 ## Quick start
@@ -78,11 +81,16 @@ Useful `record` options:
   commit used by the [ICE4HPC dataset](https://github.com/llnl/ice4hpc_data)
   and records the dataset's GPU configurations (`-m event`, grid types
   `unionized`, `hash`, `nuclide`).
+- `examples/xsbench-db/` is the database that script produced for the `small`
+  and `large` sizes on Tuolumne (MI300A). Its absolute paths (sources, Mneme
+  records, snapshots) point to where it was recorded; the Mneme recordings
+  themselves are not in the repository.
 
 ## Database layout
 
 The database is a directory tree that follows the hierarchy, so `ls`, `tree`,
-an editor or `jq` show what is in it. For the XSBench example:
+an editor or `jq` show what is in it. For the XSBench example
+(`examples/xsbench-db`):
 
 ```
 xsbench-db/
@@ -106,7 +114,6 @@ xsbench-db/
 │   │       │   └── instances.json  launch configurations Mneme recorded
 │   │       ├── calculate_macro_xs/{function.json, ir.ll}
 │   │       └── pick_mat/{function.json, ir.ll}
-│   └── runtime/                HIP runtime helpers (__ockl_*, __hip_get_*)
 └── xsbench-small-hash/ ...
 ```
 
@@ -115,7 +122,7 @@ Every function directory has a `function.json`:
 | key | meaning |
 | --- | --- |
 | `kind` | `host`, `kernel` or `device` |
-| `name`, `symbol` | demangled name and linkage name |
+| `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
 | `file`, `line`, `end_line` | definition; `end_line` for kernels recorded by Mneme |
 | `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
@@ -124,7 +131,38 @@ Every function directory has a `function.json`:
 
 Host call edges are *dynamic* (observed on the way to a kernel launch);
 device call edges are *static* (from the recorded IR). `at` paths are relative
-to the program directory.
+to the program directory. HIP runtime helpers that device code calls
+(`__ockl_*`, `__hip_get_*`, functions from `include/hip/`) are left out.
+
+### Function directory names
+
+A function's directory is named after its debug-info name, which clang writes
+the same way for host and device code, without parameters or return type. A
+few rules keep the names short and usable on any file system:
+
+| source | debug-info name | directory |
+| --- | --- | --- |
+| `ns::run(int)` | `run` | `run` |
+| `template <class B> __global__ void forall(int, B)` with the lambda on line 28 | `forall<(lambda at app.hip:28:13)>` | `forall[lambda@28]` |
+| the same with a lambda from `other.hip` | `forall<(lambda at other.hip:7:3)>` | `forall[lambda@other.hip-7]` |
+| a device lambda's body, `[=] __device__ (int i) {...}` on line 28 | `operator()` | `lambda@28` |
+| a host lambda's body on line 31, built with `-g` | `main::'lambda'(double, int)::operator()` | `lambda@31` |
+| the same with `-gline-tables-only` | `operator()` | `operator()` |
+
+- Template brackets become `[]`, `::` becomes `.`, and other characters that
+  are awkward in paths become `_`.
+- Names longer than 80 characters (RAJA kernels, for example) keep only the
+  lambdas among their template arguments: `forall_hip_kernel[lambda@41]`, or
+  `[...]` when there are none.
+- If two functions in a file still get the same name (overloads), the
+  directory falls back to the mangled symbol.
+
+With `-g`, host frames carry demangled names (`launch<main::'lambda'(int)>`)
+instead of clang's `(lambda at ...)` spelling; a lambda whose body is in the
+database is still written `lambda@<line>` wherever it appears. The full
+demangled name is always in `function.json`. A kernel's `forall[lambda@28]` and
+the device function `lambda@28` that it calls are the same lambda, so its body
+is easy to find from the kernel.
 
 Example queries:
 
@@ -161,9 +199,6 @@ G.add_nodes_from((n["id"], n) for n in g["nodes"])
 G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 ```
 
-`export --include-runtime` also puts HIP runtime helpers in `graph.json`;
-they are always in each program's `runtime/` directory.
-
 ## Limitations
 
 - **Host call graph is partial.** Only host functions on a path to a kernel
@@ -179,6 +214,13 @@ they are always in each program's `runtime/` directory.
 - **Mneme aborts on zero-byte `hipMalloc`** ("Destroying memory descriptor
   without releasing device memory ... size=0"). XSBench's `hash` and `nuclide`
   grid types hit this, so the example records them with `--no-mneme`.
+- **Host lambdas have no scope or line** with `-gline-tables-only`: the
+  debug info names their body `operator()`, and several host lambdas in one
+  file end up as `operator()`, `operator()~2`, and so on. Build with `-g`.
+- **Kernel templates live where they are defined.** A RAJA or Kokkos kernel
+  instantiated with an application lambda is filed under the library header
+  that defines the kernel template, and its lambda body under the
+  application file.
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.

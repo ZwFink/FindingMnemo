@@ -25,7 +25,7 @@ fi
 
 # Same flags add_mneme() applies in CMake builds.
 make -C "$XSBENCH/hip" -j8 CC=hipcc \
-  CFLAGS="-std=c++14 -O3 --offload-arch=gfx942 -gline-tables-only $(mneme config cflags)" \
+  CFLAGS="-std=c++14 -O3 --offload-arch=gfx942 -g $(mneme config cflags)" \
   LDFLAGS="-lm --offload-arch=gfx942 $(mneme config ldflags)"
 
 RUNS=()
