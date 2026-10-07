@@ -35,8 +35,7 @@ to a kernel launch), device edges are *static* (from the recorded IR).
    basic blocks with source lines), reads each kernel's source through
    Mneme's `RecordedExecution.kernel_source()`, cuts each device function's
    source from Mneme's copy of its file, disassembles each kernel from the
-   application's embedded code objects (one per translation unit without
-   `-fgpu-rdc`), and writes a database directory that
+   application's embedded code object, and writes a database directory that
    mirrors the hierarchy, plus a nodes/edges JSON graph. When the application
    was built with `-grecord-command-line`, it reruns each recorded compile
    unit's preprocessor so function sources show the code the device compiled
@@ -262,10 +261,7 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 - **HIP only.** A CUDA port needs the same shim for `cudaLaunchKernel` /
   `__cudaRegisterFunction` and `cuobjdump` instead of `clang-offload-bundler`.
 - **ISA comes from the main executable.** Kernels in shared libraries get call
-  paths and IR but no ISA. A kernel with internal linkage, such as a template
-  from a header, can be in the code object of several translation units; if
-  they compiled it differently, the ISA is the one from the translation unit
-  Mneme recorded, and a kernel Mneme did not record gets none.
+  paths and IR but no ISA.
 - **Kernels that Mneme did not record**, such as those from libraries not
   built for Mneme, have no IR, source span or loops. Their file comes from the
   code object's line table, and `entry_line` is the line of their first
