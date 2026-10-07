@@ -6,6 +6,7 @@ depend on LLVM Python bindings. Loop nesting comes from ``opt``'s
 ``!llvm.loop`` metadata.
 """
 
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -134,6 +135,15 @@ class _DebugInfo:
         scope = self.nodes.get(self._ref(fields.get("scope")))
         fn.is_lambda = (fn.display_name == "operator()" and scope is not None
                         and scope[0] == "DICompositeType" and "name" not in scope[1])
+
+
+def compile_unit_files(ir_text: str) -> List[str]:
+    """The main file of each compile unit of a module, as an absolute path."""
+    nodes = _parse_metadata(ir_text.splitlines())
+    debug = _DebugInfo(nodes)
+    files = [debug.file(ref) for ref, (kind, _) in sorted(nodes.items())
+             if kind == "DICompileUnit"]
+    return [os.path.normpath(f) for f in files if f]
 
 
 def parse_module(ir_text: str) -> Dict[str, Function]:
