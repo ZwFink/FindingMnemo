@@ -44,8 +44,8 @@ to a kernel launch), device edges are *static* (from the recorded IR).
 ## Requirements
 
 - AMD GPU with ROCm (tested on Tuolumne, MI300A/gfx942, ROCm 6.4.0).
-- A Mneme install with Python support, from a branch that records kernel source
-  (`record-source-file` or later). See `examples/env-tuolumne.sh`.
+- An up-to-date Mneme install (`develop`) with Python support
+  (`MNEME_ENABLE_PYTHON=On`). See `examples/env-tuolumne.sh`.
 - The application built for Mneme (`add_mneme()` in CMake, or the flags from
   `mneme config cflags` / `ldflags` for Makefiles), with debug info. Prefer
   `-g`: it gives host functions their definition line and host lambdas a name,
