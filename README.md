@@ -131,7 +131,9 @@ Every function directory has a `function.json`:
 Host call edges are *dynamic* (observed on the way to a kernel launch);
 device call edges are *static* (from the recorded IR). `at` paths are relative
 to the program directory. HIP runtime helpers that device code calls
-(`__ockl_*`, `__hip_get_*`, functions from `include/hip/`) are left out.
+(`__ockl_*`, `__hip_get_*`, functions from `include/hip/`) and functions from
+clang's own headers (`__clang_hip_math.h`, `__clang_hip_cmath.h`, ... in
+`lib/clang/<version>/include/`) are left out.
 
 ### Function directory names
 
