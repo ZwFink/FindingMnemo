@@ -2,9 +2,11 @@
   "kind": "device",
   "name": "pick_mat(unsigned long*)",
   "symbol": "_Z8pick_matPm",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 293,
   "end_line": 330,
+  "source_view": "device",
+  "source_arch": "gfx942",
   "calls": [
     {
       "function": "LCG_random_double(unsigned long*)",

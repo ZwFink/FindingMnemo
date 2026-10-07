@@ -2,9 +2,11 @@
   "kind": "device",
   "name": "LCG_random_double(unsigned long*)",
   "symbol": "_Z17LCG_random_doublePm",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 332,
   "end_line": 340,
+  "source_view": "device",
+  "source_arch": "gfx942",
   "called_by": [
     {
       "function": "xs_lookup_kernel_baseline(Inputs, SimulationData)",

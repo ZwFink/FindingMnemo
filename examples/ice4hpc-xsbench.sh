@@ -19,9 +19,10 @@ if [ ! -d "$XSBENCH" ]; then
   git -C "$XSBENCH" checkout ba08e52
 fi
 
-# Same flags add_mneme() applies in CMake builds.
+# Same flags add_mneme() applies in CMake builds; -grecord-command-line lets
+# the export show device source with #ifs resolved.
 make -C "$XSBENCH/hip" -j8 CC=hipcc \
-  CFLAGS="-std=c++14 -O3 --offload-arch=gfx942 -g $(mneme config cflags)" \
+  CFLAGS="-std=c++14 -O3 --offload-arch=gfx942 -g -grecord-command-line $(mneme config cflags)" \
   LDFLAGS="-lm --offload-arch=gfx942 $(mneme config ldflags)"
 
 RUNS=()

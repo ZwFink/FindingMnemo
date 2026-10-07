@@ -2,9 +2,23 @@
   "kind": "device",
   "name": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
   "symbol": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 108,
   "end_line": 190,
+  "source_view": "device",
+  "source_arch": "gfx942",
+  "macro_expansions": [
+    {
+      "line": 119,
+      "macros": ["NUCLIDE"],
+      "text": "if( grid_type == 1 )"
+    },
+    {
+      "line": 131,
+      "macros": ["UNIONIZED"],
+      "text": "else if( grid_type == 0) // Unionized Energy Grid - we already know the index, no binary search needed."
+    }
+  ],
   "calls": [
     {
       "function": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
