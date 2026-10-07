@@ -1,4 +1,5 @@
-from findingmnemo.export import _Function, _body, _dir_name, _lambda_lines, _short_name
+from findingmnemo.export import (_Function, _body, _dir_name, _is_runtime_function, _lambda_lines,
+                                 _short_name)
 from findingmnemo.ir import BasicBlock, Function, Loop
 
 
@@ -75,3 +76,16 @@ def test_dir_name_abbreviates_long_template_arguments():
             "RAJA::hip::IndexGlobal<(RAJA::named_dim)0, 256, 0>, true>, "
             "RAJA::Iterators::numeric_iterator<long, long, long*>, (lambda at app.hip:41:5), long>")
     assert _dir_name(_fn("kernel", name, name), {}) == "forall_kernel[lambda@41]"
+
+
+def test_runtime_functions_include_clang_headers():
+    rocm = "/opt/rocm-6.4.0/lib/llvm/lib/clang/19/include/"
+    assert _is_runtime_function("_ZL4fabsd", rocm + "__clang_hip_math.h")
+    assert _is_runtime_function("_ZL3absd", rocm + "__clang_hip_cmath.h")
+    assert _is_runtime_function("_ZL4sqrtf",
+                                "/usr/lib/llvm-19/lib/clang/19.1.0/include/__clang_cuda_math.h")
+    assert _is_runtime_function("f", "/opt/rocm/include/hip/amd_detail/amd_device_functions.h")
+    assert _is_runtime_function("__ocml_fabs_f64", None)
+    assert not _is_runtime_function("_Z6kernelPd", "/src/app/kernel.hip")
+    assert not _is_runtime_function("_Z1fv", "/src/clang/tools/include/f.h")
+    assert not _is_runtime_function("_Z1fv", None)
