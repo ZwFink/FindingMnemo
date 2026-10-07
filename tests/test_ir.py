@@ -1,4 +1,4 @@
-from findingmnemo.ir import parse_loops, parse_module
+from findingmnemo.ir import compile_unit_files, parse_loops, parse_module
 
 MODULE = """
 define protected amdgpu_kernel void @kern(ptr %a) #0 !dbg !5 !proteus.jit !9 {
@@ -40,6 +40,16 @@ def test_parse_module_functions_blocks_and_calls():
     assert (helper.line, helper.display_name) == (3, "helper")
     assert helper.calls == []
     assert helper.text == 'define internal fastcc i32 @"helper.fn"(i32 %v) !dbg !6 {\nentry:\n  ret i32 %v\n}\n'
+
+
+def test_compile_unit_files():
+    module = MODULE + """
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !2, producer: "clang")
+!2 = !DIFile(filename: "../src/./main.cpp", directory: "/build")
+!3 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang")
+"""
+    assert compile_unit_files(module) == ["/src/main.cpp", "/src/k.cpp"]
+    assert compile_unit_files(MODULE) == []
 
 
 def test_parse_loops_nesting():
