@@ -9,7 +9,8 @@ a directory tree that mirrors the program hierarchy, so it can be browsed with
     <db>/<program>/program.json, launches.json
     <db>/<program>/files/<source file>/<function>/function.json, ir.ll, ...
 
-HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) are left out.
+HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) and functions from
+clang's own headers (``__clang_hip_math.h``, ...) are left out.
 """
 
 import datetime
@@ -77,12 +78,17 @@ class _Edge:
 
 _RUNTIME_PREFIXES = ("__ockl_", "__ocml_", "__hip_", "_ZN24__hip_builtin", "_ZN25__hip_builtin",
                      "_ZL21__hip_", "_ZL22__hip_")
+# Clang's own headers, such as __clang_hip_math.h, in <llvm>/lib/clang/19/include.
+_COMPILER_HEADERS = re.compile(r"/clang/\d[^/]*/include/")
 
 
 def _is_runtime_function(name: str, file: Optional[str]) -> bool:
     if name.startswith(_RUNTIME_PREFIXES):
         return True
-    return bool(file) and "/include/hip/" in file
+    if not file:
+        return False
+    return ("/include/hip/" in file or bool(_COMPILER_HEADERS.search(file))
+            or os.path.basename(file).startswith("__clang_"))
 
 
 def _demangle(symbols: List[str], llvm_bin: str) -> Dict[str, str]:
