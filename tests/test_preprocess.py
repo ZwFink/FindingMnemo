@@ -274,6 +274,16 @@ def test_function_end_handles_member_initializers():
           if (w) { area(); }
         }
     """) == 5
+    # RAJA's ReduceLastBlock_Data: the last initializer is braced and the body
+    # is empty.
+    assert _end("""
+          ReduceLastBlock_Data(const ReduceLastBlock_Data& other)
+              : value {other.identity},
+                owns_device_pointer {false}
+          {}
+
+          ReduceLastBlock_Data& operator=(const ReduceLastBlock_Data&) = default;
+    """) == 4
 
 
 def test_function_end_of_a_lambda_inside_a_call():
@@ -296,6 +306,22 @@ def test_function_end_one_line_function_and_safety_net():
         int g() { return 0; }
     """, last=3) is None
     assert _end("int declaration_only();") is None
+
+
+def test_function_end_of_a_declaration_does_not_run_into_the_next_body():
+    # RAJA's AsIntegerArray: the defaulted constructor ends on its own line,
+    # not at the end of array_size().
+    assert _end("""
+          AsIntegerArray() = default;
+
+          RAJA_HOST_DEVICE constexpr size_t array_size() const
+          {
+            return num_integer_type;
+          }
+    """) == 1
+    assert _end("Box(const Box&) = delete;\nvoid g() {}") == 1
+    # An implicit member's line can be the class's forward declaration.
+    assert _end("class ReduceSum;\nclass ReduceMin { };") is None
 
 
 # Exporter fallback without a device view

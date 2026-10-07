@@ -538,6 +538,8 @@ def function_end(code: List[Optional[str]], start: int,
                 after_word = bool(word) or prev == ">"
                 body = not init_depth and (
                     prev in (")", "]")
+                    # After the last member initializer, as in : a{1} {
+                    or (prev == "}" and member_init)
                     # Outside the parameters: const, noexcept, override, a
                     # trailing return type or a member initializer.
                     or (after_word and (paren <= 0 or arrow or "".join(word) in _BODY_AFTER_WORD)))
@@ -549,6 +551,13 @@ def function_end(code: List[Optional[str]], start: int,
                     init_depth += 1
             elif c == "}" and init_depth:
                 init_depth -= 1
+            elif c == ";" and not init_depth and paren <= 0:
+                # A declaration without a body. A defaulted or deleted
+                # function ends here; anything else, such as the forward
+                # declaration an implicit member points to, has no body.
+                if before_word == "=" and "".join(word) in ("default", "delete"):
+                    return None if last_code_line and n < last_code_line else n
+                return None
             elif c == "(":
                 paren, arrow = paren + 1, False
             elif c == ")":
