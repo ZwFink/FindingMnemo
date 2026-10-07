@@ -114,6 +114,8 @@ class _Program:
         self.source_copies: Dict[str, str] = {}
         # Device views of source files, by compile unit.
         self.unit_views: Dict[tuple, preprocess.UnitViews] = {}
+        # The functions of the modules each compile unit was recorded in, by name.
+        self.unit_functions: Dict[tuple, Dict[str, ir.Function]] = {}
         self.llvm_bin = llvm_bin
         self.dir = ""
 
@@ -159,13 +161,15 @@ class _Program:
 
     def _add_recorded_kernel(self, record: dict, record_path: str, record_dir: str,
                              code: isa.KernelCode, llvm_bin: str):
-        ir_texts, parsed = [], {}
+        ir_texts, parsed, units = [], {}, []
         for module in record["Modules"]:
             text, functions = ir.analyze_bitcode(os.path.join(record_dir, module), llvm_bin)
             ir_texts.append(text)
             parsed.update(functions)
+            for unit in preprocess.compile_units(text):
+                units.append(unit)
+                self.unit_functions.setdefault(unit.key, {}).update(functions)
 
-        units = [u for text in ir_texts for u in preprocess.compile_units(text)]
         name = record["KernelName"]
         self.demangled.update(_demangle([f for f in parsed if f not in self.demangled], llvm_bin))
         for fn in parsed.values():
@@ -209,9 +213,22 @@ class _Program:
             if views.error:
                 print(f"findingmnemo export: no device source view for {unit.file}: {views.error}",
                       file=sys.stderr)
-            elif views.compiler:
+                continue
+            if views.compiler:
                 print(f"findingmnemo export: {unit.argv[0]} is gone; preprocessed {unit.file} "
                       f"with {views.compiler}", file=sys.stderr)
+            for path, view in list(views.views.items()):
+                # A view that hides code the device compiled is wrong, so it is
+                # not used for any function in the file.
+                for fn in self.unit_functions.get(key, {}).values():
+                    line = view.contradiction(n for block in fn.blocks for file, n in block.lines
+                                              if os.path.normpath(file) == path)
+                    if line:
+                        print(f"findingmnemo export: no device source view for {path}: the debug "
+                              f"info puts code of {fn.display_name} on line {line}, which the "
+                              f"preprocessed file does not compile", file=sys.stderr)
+                        del views.views[path]
+                        break
 
     def view(self, fn: "_Function") -> Optional[Tuple[preprocess.CompileUnit, preprocess.FileView]]:
         """The device view of the function's file, preferring the compile unit

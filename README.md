@@ -206,9 +206,19 @@ device compiled. Before preprocessing, the export checks each file against the
 MD5 in the debug info; if the main file changed since the build, it uses
 Mneme's copy when that matches. It needs the recorded compiler and headers at
 their recorded paths (or the export's own `clang` when the compiler is gone,
-with a warning). Without a recorded command line, or when preprocessing fails,
-`source_view` is `as_written` and the source is the function's lines as
-written, still ending at its closing brace.
+with a warning).
+
+The recorded command is rerun as it was, with `-E`, `-o -` and the module's
+architecture appended; the driver lets these win over the build's own `-c`,
+`-o` and `--offload-arch`. Only options that would still change what is
+printed or write a file (`-M`, `-MD`, `-P`, `-dM`, ...), plugins (Proteus) and
+`-mllvm` options, and the device-only `-mcpu=` are removed. After
+preprocessing, the export checks the view against the debug info: if any line
+the IR attributes code to is one the view says was not compiled, the view is
+wrong (the file was preprocessed differently from the build) and is not used,
+with a warning. Without a recorded command line, or when preprocessing fails
+or disagrees with the debug info, `source_view` is `as_written` and the source
+is the function's lines as written, still ending at its closing brace.
 
 Example queries:
 
@@ -274,10 +284,15 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   a closing brace on the next line.
 - **Device views need the build environment.** Preprocessing again needs the
   compiler, headers and compile directory at their recorded paths, and
-  environment variables that affected the build are not recorded. Files with
-  `#line` directives get no view, since their debug-info line numbers do not
-  refer to the file itself. A `#if` branch whose lines produce no output at
-  all (only macros that expand to nothing) counts as not taken.
+  environment variables that affected the build are not recorded. The check
+  against the debug info catches a wrong view only where a branch with code
+  in it differs; a macro with another value but the same branches taken goes
+  unnoticed. Files with `#line` directives get no view, since their
+  debug-info line numbers do not refer to the file itself. A `#if` branch
+  whose lines produce no output at all (only macros that expand to nothing)
+  counts as not taken. Commands that compile several sources at once, and
+  builds with `-save-temps` (whose debug info checksums the temporary
+  preprocessed file), get no view.
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.

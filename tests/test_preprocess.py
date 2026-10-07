@@ -29,7 +29,7 @@ define void @k() #0 !dbg !5 {
 }
 attributes #0 = { "target-cpu"="gfx90a" }
 !llvm.dbg.cu = !{!0}
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang", isOptimized: true, flags: "/rocm/bin/clang-19 -DMSG=\5C\22hi\5C\22 -I/src/my\5C dir -c k.hip -o k.o", runtimeVersion: 0, emissionKind: LineTablesOnly)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang", isOptimized: true, flags: "/rocm/bin/clang-19 -DMSG=\5C\22hi\5C\22 -I/src/my\\ dir -c k.hip -o k.o", runtimeVersion: 0, emissionKind: LineTablesOnly)
 !1 = !DIFile(filename: "k.hip", directory: "/src/my dir", checksumkind: CSK_MD5, checksum: "0123456789abcdef0123456789abcdef")
 !2 = !DIFile(filename: "/src/my dir/inc/../h.h", directory: "", checksumkind: CSK_MD5, checksum: "fedcba9876543210fedcba9876543210")
 !5 = distinct !DISubprogram(name: "k", scope: !1, file: !1, line: 3, unit: !0)
@@ -55,37 +55,51 @@ def _unit(argv, arch="gfx942"):
     return CompileUnit(argv, "/src", "/src/k.hip", arch)
 
 
-def test_preprocess_argv_keeps_what_affects_preprocessing():
-    argv = preprocess_argv(_unit([
-        "/rocm/clang-19", "--driver-mode=g++", "--offload-arch=gfx90a", "--offload-arch", "gfx942",
-        "-std=c++17", "-O3", "-DA=1", "-D", "B", "-UC", "-I", "inc", "-Iinc2", "-isystem", "sys",
+TAIL = ["--no-offload-arch=all", "--offload-arch=gfx942", "-E", "-C", "-dD",
+        "--offload-device-only", "-Wno-unused-command-line-argument", "-o", "-"]
+
+
+def test_preprocess_argv_removes_only_what_breaks_preprocessing():
+    kept = [
+        "--driver-mode=g++", "--offload-arch=gfx90a", "--offload-arch=gfx942", "-std=c++17",
+        "-O3", "-DA=1", "-D", "B", "-UC", "-I", "inc", "-Iinc2", "-isystem", "sys",
         "-include", "pre.h", "-Werror",
-        # Outputs and dependency files.
-        "-c", "-o", "k.o", "-MD", "-MF", "k.d", "-MT", "k.o", "-save-temps=obj", "-ftime-trace",
-        # Proteus and other plugins.
+        # Overridden by what is appended: -E, the last -o, --no-offload-arch=all.
+        "-c", "-o", "k.o", "-save-temps=obj", "-ftime-trace", "--offload-host-only",
+        # Values the -X options pass on stay with them, even ones that look
+        # like options to remove.
+        "-Xclang", "-fno-validate-pch", "-Xlinker", "-M", "-Xarch_device", "-DDEVICE",
+        # An option the code knows nothing about keeps its value.
+        "-unknown-separate", "value", "-Wl,--as-needed", "-lm", "other.o",
+        "-x", "hip", "k.hip", "-x", "none", "lib.a",
+    ]
+    removed = [
+        # Dependency files and lists, and output that is not the source.
+        "-MD", "-MF", "k.d", "-MT", "k.o", "-MQk.o", "-MJcdb.json", "-M", "-MM", "-MMD", "-MP",
+        "-P", "-CC", "-dM", "-###",
+        # Proteus and other plugins and LLVM options.
         "-fpass-plugin=/p/libProteusPass.so", "-fplugin=/p/libProteusPass.so",
         "-Xclang", "-mllvm", "-Xclang", "-force-proteus-jit-annotate-all",
-        "-Xclang", "-load", "-Xclang", "x.so", "-mllvm", "-some-option",
-        "-Xclang", "-fno-validate-pch",
-        # Link flags and other inputs.
-        "-Wl,--as-needed", "-Xlinker", "-z", "-lm", "other.o",
-        "-x", "hip", "k.hip", "-x", "none", "lib.a", "-mcpu=gfx942",
-    ]))
-    assert argv == [
-        "/rocm/clang-19", "--driver-mode=g++", "-std=c++17", "-O3", "-DA=1", "-D", "B", "-UC",
-        "-I", "inc", "-Iinc2", "-isystem", "sys", "-include", "pre.h", "-Werror",
-        "-Xclang", "-fno-validate-pch", "-lm",
-        "--offload-arch=gfx942", "-E", "-C", "-dD", "--offload-device-only",
-        "-Wno-unused-command-line-argument", "-o", "-", "-x", "hip", "k.hip",
+        "-Xclang", "-load", "-Xclang", "x.so", "-mllvm", "-some-option", "-mllvm=-other",
+        # Recorded for the device compile; the host compile rejects it.
+        "-mcpu=gfx942",
     ]
+    argv = preprocess_argv(_unit(["/rocm/clang-19", *kept[:20], *removed, *kept[20:]]))
+    assert argv == ["/rocm/clang-19", *kept, *TAIL]
 
 
 def test_preprocess_argv_uses_a_copy_and_another_compiler():
-    argv = preprocess_argv(_unit(["clang", "-c", "./k.hip"]), source="/copy/k.hip",
+    argv = preprocess_argv(_unit(["clang", "-x", "hip", "./k.hip", "-c"]), source="/copy/k.hip",
                            compiler="/llvm/bin/clang")
-    assert argv[0] == "/llvm/bin/clang"
-    # Quoted includes still find the original directory's headers.
-    assert argv[-3:] == ["-iquote", "/src", "/copy/k.hip"]
+    # The copy takes the main file's place, after its -x. Quoted includes
+    # still find the original directory's headers.
+    assert argv == ["/llvm/bin/clang", "-x", "hip", "/copy/k.hip", "-c", *TAIL,
+                    "-iquote", "/src"]
+
+
+def test_preprocess_argv_adds_a_main_file_the_command_does_not_name():
+    assert preprocess_argv(_unit(["clang", "@args.rsp"])) == ["clang", "@args.rsp", *TAIL,
+                                                               "/src/k.hip"]
 
 
 # Preprocessed output
@@ -159,6 +173,15 @@ def test_view_classifies_lines():
     # __device__ comes from a system header, so only SQUARE is listed.
     assert view.expansions(3, 9) == [{"line": 5, "macros": ["SQUARE"],
                                       "text": "return ((a) * (a));"}]
+
+
+def test_view_contradicts_code_on_lines_it_does_not_compile():
+    view = _view(SOURCE, OUTPUT.replace('# 20 "k.hip"', '# 9 "k.hip"'))
+    # Line 0 is code the compiler made up.
+    assert view.contradiction([0, 3, 5, 9]) is None
+    assert view.contradiction([9, 7, 5]) == 7       # skipped
+    assert view.contradiction([3, 4]) == 4          # a directive
+    assert view.contradiction([12]) == 12           # past the end of the file
 
 
 def _marked(lines):
@@ -435,7 +458,7 @@ HEADER = _src("""
 
 MAIN = _src("""
     #include <hip/hip_runtime.h>
-    #include "../inc dir/twice.h"
+    #include "twice.h"
     #define OPEN {
     #define CLOSE }
     __device__ int arch_value() OPEN
@@ -473,7 +496,8 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
         # Braces from OPEN and CLOSE count.
         assert view.function_end(lines.index("__device__ int arch_value() OPEN") + 1) \
             == lines.index("CLOSE") + 1
-        # The template in the quoted, relative header gets a view too.
+        # The template in the header, found through an -I with a space in it,
+        # gets a view too.
         hview = result.views[header]
         assert hview.kinds[3:8] == ["directive", "skipped", "directive", "same", "directive"]
         assert hview.function_end(3) == 9
@@ -616,3 +640,68 @@ def test_export_writes_the_device_view(tmp_path):
     assert fn.end_line == helper.line + 7
     assert source.split("\n") == ["__device__ double helper(double a) {", "", "  NOTHING(a)",
                                   "  return transform(a);", "", "", "", "}", ""]
+
+
+@needs_clang
+def test_preprocessing_again_writes_nothing_into_the_build(tmp_path):
+    (tmp_path / "toy.hip").write_text(TOY)
+    (tmp_path / "lib dir").mkdir()
+    module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-MD", "-ftime-trace",
+                       "-Wl,--as-needed", "-L", str(tmp_path / "lib dir"), "-Xlinker", "-M",
+                       "-lm")
+    unit, = compile_units(module)
+    # Compiling with -save-temps checksums the temporary preprocessed file
+    # instead of toy.hip, so it is only added to the recorded command here.
+    unit.argv.insert(1, "-save-temps")
+    before = {p: p.stat().st_mtime_ns for p in tmp_path.rglob("*")}
+    result = preprocess(unit, {unit.file})
+    assert result.error is None
+    _assert_agrees_with_ir(module, result.views[unit.file])
+    assert {p: p.stat().st_mtime_ns for p in tmp_path.rglob("*")} == before
+
+
+@needs_clang
+def test_a_command_with_two_inputs_fails_plainly(tmp_path):
+    (tmp_path / "toy.hip").write_text(TOY)
+    (tmp_path / "other.hip").write_text("__device__ int other() { return 7; }\n")
+    module, = _compile(tmp_path, "toy.hip")
+    unit, = compile_units(module)
+    unit.argv.append("other.hip")
+    assert "cannot specify -o when generating multiple output files" in \
+        preprocess(unit, {unit.file}).error
+
+
+def _program_with_views(module, unit):
+    """A program with the module's functions, after building its views."""
+    functions = ir.parse_module(module)
+    prog = _Program.__new__(_Program)
+    prog.unit_views, prog.source_copies, prog.llvm_bin = {}, {}, os.path.dirname(CLANG)
+    prog.unit_functions = {unit.key: functions}
+    prog.functions = {}
+    for f in functions.values():
+        fn = _Function("device", f.name, f.display_name, f.display_name, unit.file, f.line)
+        fn.ir_fn, fn.units = f, [unit]
+        prog.functions[("device", f.name)] = fn
+    prog.build_views()
+    return prog
+
+
+@needs_clang
+def test_export_drops_a_view_that_contradicts_the_ir(tmp_path, capsys):
+    (tmp_path / "toy.hip").write_text(TOY)
+    module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
+    unit, = compile_units(module)
+    assert unit.file in _program_with_views(module, unit).unit_views[unit.key].views
+    assert capsys.readouterr().err == ""
+    # As if the build had defined USE_FAST some way the command does not
+    # record, e.g. through an environment variable. The driver records
+    # -DUSE_FAST as two arguments.
+    i = unit.argv.index("USE_FAST")
+    assert unit.argv[i - 1] == "-D"
+    del unit.argv[i - 1:i + 1]
+    prog = _program_with_views(module, unit)
+    assert prog.unit_views[unit.key].views == {}
+    fast = TOY.splitlines().index("__device__ double transform(double a) { return a * SCALE; }")
+    assert f"puts code of transform on line {fast + 1}," in capsys.readouterr().err
+    helper = next(fn for fn in prog.functions.values() if fn.display_name == "helper")
+    assert _function_source(prog, helper)[1] == {}

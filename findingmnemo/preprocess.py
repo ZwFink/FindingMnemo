@@ -27,14 +27,14 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from .ir import _parse_metadata
 
 # Line kinds whose text is not part of the device source.
 REMOVED = ("directive", "skipped")
 
-_HEX_ESCAPE = re.compile(r"\\([0-9A-Fa-f]{2})")
+_ESCAPE = re.compile(r"\\(\\|[0-9A-Fa-f]{2})")
 _TARGET_CPU = re.compile(r'"target-cpu"="([^"]+)"')
 
 
@@ -56,10 +56,11 @@ class CompileUnit:
 
 
 def _llvm_string(value: str) -> str:
-    """Decode a quoted metadata string; LLVM writes '"' and '\\' as \\22 and \\5C."""
+    """Decode a quoted metadata string. LLVM writes '"' as \\22, and '\\' as
+    \\\\ (ROCm 6.4's LLVM 19) or \\5C."""
     if value.startswith('"') and value.endswith('"'):
         value = value[1:-1]
-    return _HEX_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), value)
+    return _ESCAPE.sub(lambda m: "\\" if m.group(1) == "\\" else chr(int(m.group(1), 16)), value)
 
 
 def split_command(flags: str) -> List[str]:
@@ -119,26 +120,25 @@ def compile_units(ir_text: str) -> List[CompileUnit]:
     return units
 
 
-# Options whose value is the next argument, so it is not mistaken for an input.
-_SEPARATE = {
-    "-o", "-D", "-U", "-I", "-include", "-imacros", "-isystem", "-idirafter", "-iquote",
-    "-isysroot", "-iprefix", "-iwithprefix", "-iwithprefixbefore", "-iframework", "-F",
-    "-x", "-MF", "-MT", "-MQ", "-MJ", "-Xclang", "-Xlinker", "-Xassembler",
-    "-Xpreprocessor", "-mllvm", "-Xarch_device", "-Xarch_host", "-Xoffload-linker",
-    "-Xopenmp-target", "-target", "-arch", "-L", "-include-pch", "-ivfsoverlay", "-B",
-    "-T", "-u", "-z", "--param", "--offload-arch", "--cuda-gpu-arch", "-working-directory",
-}
-# Options that make output, change what is made, or need a plugin; dropped.
+# The recorded command is rerun as it was, with options appended that the
+# driver lets win over earlier ones: -E over -c and -S, the last -o, and
+# --no-offload-arch=all over the recorded architectures. Only options that
+# would still change what is printed, write a file, or fail without the
+# build's plugins are removed, so nothing else about the command, such as
+# which options take a value, needs to be known.
 _DROP = {
-    "-c", "-S", "-E", "-P", "-C", "-CC", "-emit-llvm", "-fsyntax-only", "-M", "-MM", "-MD",
-    "-MMD", "-MP", "-MG", "-v", "-###", "--hip-link", "-save-temps",
-    "--cuda-device-only", "--cuda-host-only", "--offload-device-only", "--offload-host-only",
+    # Dependency lists and files.
+    "-M", "-MM", "-MD", "-MMD", "-MP", "-MG", "-MV",
+    # Output without line markers, with comments in macro expansions, with
+    # only macros, or with nothing at all.
+    "-P", "-CC", "-dM", "-dD", "-dI", "-dN", "-dE", "-###",
 }
-_DROP_PREFIXES = ("-save-temps=", "--save-temps", "-fplugin=", "-fpass-plugin=", "-mcpu=",
-                  "-ftime-trace", "-Wl,", "--offload-arch=", "--cuda-gpu-arch=", "-dD", "-dM",
-                  "-dI", "-dN")
-_DROP_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "-Xlinker", "-mllvm", "-x",
-                    "--offload-arch", "--cuda-gpu-arch", "-Xoffload-linker"}
+# -mcpu= is recorded for the device compile only; the host compile rejects it.
+# The -M options here are the attached forms of _DROP_WITH_VALUE.
+_DROP_PREFIXES = ("-mcpu=", "-fplugin=", "-fpass-plugin=", "-fplugin-arg-", "-mllvm=",
+                  "-MF", "-MT", "-MQ", "-MJ")
+# Removed together with the next argument, their value.
+_DROP_WITH_VALUE = {"-MF", "-MT", "-MQ", "-MJ", "-mllvm"}
 # -Xclang values that load plugins or pass LLVM options; the next -Xclang
 # value belongs to them.
 _XCLANG_PAIRS = {"-mllvm", "-load", "-plugin", "-add-plugin"}
@@ -154,51 +154,41 @@ def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
     """
     args = unit.argv[1:]
     out: List[str] = []
-    input_arg, lang, current_lang = None, None, None
+    found = False
     i = 0
     while i < len(args):
         a = args[i]
         if a == "-Xclang" and i + 1 < len(args):
             value = args[i + 1]
             if value in _XCLANG_PAIRS or value.startswith("-plugin-arg-"):
-                skip = 4 if i + 2 < len(args) and args[i + 2] == "-Xclang" else 2
-                i += skip
+                i += 4 if i + 2 < len(args) and args[i + 2] == "-Xclang" else 2
                 continue
-            out += [a, value]
-            i += 2
-            continue
-        if a == "-x" and i + 1 < len(args):
-            current_lang = args[i + 1]
+        if a.startswith("-X") and "=" not in a and i + 1 < len(args):
+            # -Xlinker, -Xarch_device and the like pass their value on; it is
+            # not one of the driver's own options.
+            out += args[i:i + 2]
             i += 2
             continue
         if a in _DROP_WITH_VALUE:
             i += 2
             continue
-        if a in _SEPARATE:
-            out += args[i:i + 2]
-            i += 2
-            continue
-        attached_output = a.startswith("-o") and not a.startswith("-obj")
-        if a in _DROP or a.startswith(_DROP_PREFIXES) or attached_output:
+        if a in _DROP or a.startswith(_DROP_PREFIXES):
             i += 1
             continue
-        if not a.startswith("-") or a == "-":
-            # An input file. Keep none, but note the main file's language.
-            if os.path.normpath(os.path.join(unit.directory, a)) == unit.file:
-                input_arg, lang = a, current_lang
-            i += 1
-            continue
+        if not a.startswith("-") and os.path.normpath(os.path.join(unit.directory, a)) == unit.file:
+            # Replaced where it stands, so a -x before it still applies.
+            found = True
+            a = source or a
         out.append(a)
         i += 1
     if unit.arch:
-        out.append(f"--offload-arch={unit.arch}")
+        out += ["--no-offload-arch=all", f"--offload-arch={unit.arch}"]
     out += ["-E", "-C", "-dD", "--offload-device-only", "-Wno-unused-command-line-argument",
             "-o", "-"]
     if source:
         out += ["-iquote", os.path.dirname(unit.file)]
-    if lang:
-        out += ["-x", lang]
-    out.append(source or input_arg or unit.file)
+    if not found:
+        out.append(source or unit.file)
     return [compiler or unit.argv[0]] + out
 
 
@@ -368,6 +358,16 @@ class FileView:
             else:
                 code.append(text)
         return function_end(code, start, last_code_line)
+
+    def contradiction(self, lines: Iterable[int]) -> Optional[int]:
+        """The first of ``lines``, which the debug info attributes code to, that
+        the view says was not compiled. There is none unless the view is wrong,
+        e.g. because the file was preprocessed with other options or headers
+        than the build used."""
+        for n in sorted(set(lines)):
+            if n > len(self.kinds) or (n > 0 and self.kinds[n - 1] in REMOVED + ("blank",)):
+                return n
+        return None
 
     def expansions(self, start: int, end: int) -> List[dict]:
         """Expanded lines in ``start``..``end`` that use the project's own or
