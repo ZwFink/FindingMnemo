@@ -19,12 +19,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from mneme.recorded_execution import KernelSource, RecordedExecution
 
-from . import ir, isa, stacks
+from . import ir, isa, preprocess, stacks
 
 FORMAT = "findingmnemo-db/1"
 
@@ -55,6 +56,8 @@ class _Function:
     end_line: Optional[int] = None
     ir_fn: Optional[ir.Function] = None
     kernel: Optional[_Kernel] = None
+    # Compile units of the module the function was read from.
+    units: List[preprocess.CompileUnit] = field(default_factory=list)
     # Directory relative to the program directory, assigned before writing.
     path: str = ""
 
@@ -109,6 +112,9 @@ class _Program:
         self.edges: Dict[tuple, _Edge] = {}
         # Source file -> the copy that `mneme record --copy-source` made of it.
         self.source_copies: Dict[str, str] = {}
+        # Device views of source files, by compile unit.
+        self.unit_views: Dict[tuple, preprocess.UnitViews] = {}
+        self.llvm_bin = llvm_bin
         self.dir = ""
 
         record_dir = os.path.join(run_dir, "record-db")
@@ -159,6 +165,7 @@ class _Program:
             ir_texts.append(text)
             parsed.update(functions)
 
+        units = [u for text in ir_texts for u in preprocess.compile_units(text)]
         name = record["KernelName"]
         self.demangled.update(_demangle([f for f in parsed if f not in self.demangled], llvm_bin))
         for fn in parsed.values():
@@ -168,6 +175,7 @@ class _Program:
             # Device functions shared by several kernels appear in each module.
             if node.ir_fn is None:
                 node.ir_fn = fn
+                node.units = units
                 if kind == "device":
                     node.end_line = _last_line(fn)
         for fn in parsed.values():
@@ -186,6 +194,33 @@ class _Program:
         if source:
             self.source_copies[kernel.file] = source.file
         kernel.kernel = _Kernel(code, record, record_path, "\n".join(ir_texts), source)
+
+    def build_views(self) -> None:
+        """Preprocess each compile unit once for the files its functions are in."""
+        wanted: Dict[tuple, Tuple[preprocess.CompileUnit, set]] = {}
+        for fn in self.functions.values():
+            for unit in fn.units:
+                if fn.file:
+                    wanted.setdefault(unit.key, (unit, set()))[1].add(fn.file)
+        for key, (unit, files) in wanted.items():
+            views = preprocess.preprocess(unit, files, self.source_copies,
+                                          os.path.join(self.llvm_bin, "clang"))
+            self.unit_views[key] = views
+            if views.error:
+                print(f"findingmnemo export: no device source view for {unit.file}: {views.error}",
+                      file=sys.stderr)
+            elif views.compiler:
+                print(f"findingmnemo export: {unit.argv[0]} is gone; preprocessed {unit.file} "
+                      f"with {views.compiler}", file=sys.stderr)
+
+    def view(self, fn: "_Function") -> Optional[Tuple[preprocess.CompileUnit, preprocess.FileView]]:
+        """The device view of the function's file, preferring the compile unit
+        whose main file it is."""
+        for unit in sorted(fn.units, key=lambda u: u.file != fn.file):
+            views = self.unit_views.get(unit.key)
+            if views and fn.file in views.views:
+                return unit, views.views[fn.file]
+        return None
 
     def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
@@ -394,24 +429,52 @@ def _write_text(path: str, text: Optional[str]) -> None:
             f.write(text)
 
 
+def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict]:
+    """The function's source and what it is, updating its end line.
+
+    With a device view, the source is what the device compiled: directives and
+    lines removed by conditional compilation are blank, so line numbers from
+    the debug info still apply. Otherwise it is the source as written.
+    """
+    k = fn.kernel
+    last = _last_line(fn.ir_fn) if fn.ir_fn else None
+    found = prog.view(fn) if fn.line and fn.kind != "host" else None
+    if found:
+        unit, view = found
+        end = view.function_end(fn.line, last)
+        if end:
+            fn.end_line = end
+            info = {"source_view": "device", "source_arch": unit.arch}
+            expansions = view.expansions(fn.line, end)
+            if expansions:
+                info["macro_expansions"] = expansions
+            return view.text(fn.line, end), info
+    source = k.source.text if k and k.source else None
+    if fn.kind == "device" and fn.end_line and fn.file in prog.source_copies:
+        with open(prog.source_copies[fn.file], newline="") as f:
+            lines = f.readlines()
+        end = preprocess.function_end(lines, fn.line, last)
+        if end:
+            fn.end_line = end
+        elif fn.end_line < len(lines) and lines[fn.end_line].strip() == "}":
+            # A function with one return statement ends there in the debug info.
+            fn.end_line += 1
+        source = "".join(lines[fn.line - 1:fn.end_line])
+    return source, ({"source_view": "as_written"} if source else {})
+
+
 def _write_function(prog: _Program, fn: _Function, out: str) -> None:
     fn_dir = os.path.join(out, fn.path)
     os.makedirs(fn_dir, exist_ok=True)
     k = fn.kernel
-    source = k.source.text if k and k.source else None
-    if fn.kind == "device" and fn.end_line and fn.file in prog.source_copies:
-        with open(prog.source_copies[fn.file]) as f:
-            lines = f.readlines()
-        # A function with one return statement ends there in the debug info.
-        if fn.end_line < len(lines) and lines[fn.end_line].strip() == "}":
-            fn.end_line += 1
-        source = "".join(lines[fn.line - 1:fn.end_line])
+    source, source_info = _function_source(prog, fn)
     data = {"kind": fn.kind, "name": fn.display_name}
     if fn.name != fn.display_name:
         data["symbol"] = fn.name
     for key, value in (("file", fn.file), ("line", fn.line), ("end_line", fn.end_line)):
         if value is not None:
             data[key] = value
+    data.update(source_info)
 
     if k:
         if k.code.instructions:
@@ -455,6 +518,7 @@ def _write_function(prog: _Program, fn: _Function, out: str) -> None:
 
 def _write_program(prog: _Program, out: str) -> None:
     file_dirs = _assign_paths(prog)
+    prog.build_views()
     os.makedirs(out)
     kernels = sorted((f for f in prog.functions.values() if f.kind == "kernel"), key=lambda f: f.path)
     _write_json(os.path.join(out, "program.json"), {

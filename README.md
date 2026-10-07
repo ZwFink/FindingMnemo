@@ -36,7 +36,10 @@ to a kernel launch), device edges are *static* (from the recorded IR).
    Mneme's `RecordedExecution.kernel_source()`, cuts each device function's
    source from Mneme's copy of its file, disassembles each kernel from the
    application's embedded code object, and writes a database directory that
-   mirrors the hierarchy, plus a nodes/edges JSON graph.
+   mirrors the hierarchy, plus a nodes/edges JSON graph. When the application
+   was built with `-grecord-command-line`, it reruns each recorded compile
+   unit's preprocessor so function sources show the code the device compiled
+   (see [Device source](#device-source)).
 
 ## Requirements
 
@@ -48,6 +51,9 @@ to a kernel launch), device edges are *static* (from the recorded IR).
   `-g`: it gives host functions their definition line and host lambdas a name,
   and leaves the device ISA and the recorded IR unchanged (checked on
   XSBench). `-gline-tables-only`, which `add_mneme()` uses, also works.
+- Optionally `-grecord-command-line`, which stores the compile command in the
+  debug info so the export can resolve `#if`s and macros the way the device
+  compile did. It adds a few hundred bytes per module.
 - Python 3.8+ with Mneme's Python package (`mneme.recorded_execution`) on
   `PYTHONPATH`; everything else is the standard library.
 
@@ -122,7 +128,10 @@ Every function directory has a `function.json`:
 | --- | --- |
 | `kind` | `host`, `kernel` or `device` |
 | `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
-| `file`, `line`, `end_line` | definition; `end_line` for kernels and device functions recorded by Mneme |
+| `file`, `line`, `end_line` | definition; `end_line` (the closing brace) for kernels and device functions recorded by Mneme |
+| `source_view` | what `source.<ext>` holds: `device` (as the device compiled it) or `as_written` |
+| `source_arch` | the GPU architecture of a `device` source view |
+| `macro_expansions` | lines of a `device` view that use the application's own or command-line macros: `{"line", "macros", "text"}`, with `text` the expanded line |
 | `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
@@ -162,6 +171,44 @@ database is still written `lambda@<line>` wherever it appears. The full
 demangled name is always in `function.json`. A kernel's `forall[lambda@28]` and
 the device function `lambda@28` that it calls are the same lambda, so its body
 is easy to find from the kernel.
+
+### Device source
+
+A file's `source.<ext>` is the file as written. A function's `source.<ext>` is,
+when possible, the function as the device compiled it: for an application built
+with `-grecord-command-line`, the export reads the compile command from each
+recorded module's debug info, reruns it with `-E` for the module's GPU
+architecture, and uses the preprocessor's line markers to line its output up
+with the original file. In the function's source,
+
+- branches of `#if`, `#ifdef` and friends that the device compile did not take
+  (because of `-D` flags, `__HIP_DEVICE_COMPILE__`, `__gfx942__`, ...) and the
+  directives themselves are blank lines,
+- everything else, `#pragma` lines included, is as written, macros too,
+
+so line numbers from the debug info (`line`, `end_line`, block `lines`) still
+apply. Lines that use the application's own macros, or ones defined on the
+command line, are listed with their expansion in `macro_expansions`. For
+example, as written and as the device compiled it:
+
+```
+__device__ double helper(double a) {          __device__ double helper(double a) {
+#if defined(__HIP_DEVICE_COMPILE__)
+  return transform(a);                  -->     return transform(a);
+#else
+  return 0.0;
+#endif
+}                                             }
+```
+
+The function ends at the brace that closes it, counting only the code the
+device compiled. Before preprocessing, the export checks each file against the
+MD5 in the debug info; if the main file changed since the build, it uses
+Mneme's copy when that matches. It needs the recorded compiler and headers at
+their recorded paths (or the export's own `clang` when the compiler is gone,
+with a warning). Without a recorded command line, or when preprocessing fails,
+`source_view` is `as_written` and the source is the function's lines as
+written, still ending at its closing brace.
 
 Example queries:
 
@@ -217,12 +264,20 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 - **Only files that define recorded kernels are copied.** Mneme copies the
   translation unit of each kernel it records; other files, such as those with
   only host code, are referenced by path in `file.json`. Device functions
-  defined in other files, such as headers, get `end_line` but no `source`
-  file.
-- **Device function spans come from the IR.** Like Mneme does for kernels,
-  a device function ends at its last line that generated code, extended over
-  a closing brace on the next line (a function with a single `return` ends at
-  that statement in the debug info).
+  defined in other files, such as headers, get a `source` file only from a
+  device view.
+- **Function ends come from brace matching.** The debug info records where a
+  function starts, not where it ends. The export scans from the start line to
+  the closing brace (skipping comments, literals, default-argument
+  initializers and member initializers); if that fails or would end before the
+  function's last line of code, it falls back to that last line, extended over
+  a closing brace on the next line.
+- **Device views need the build environment.** Preprocessing again needs the
+  compiler, headers and compile directory at their recorded paths, and
+  environment variables that affected the build are not recorded. Files with
+  `#line` directives get no view, since their debug-info line numbers do not
+  refer to the file itself. A `#if` branch whose lines produce no output at
+  all (only macros that expand to nothing) counts as not taken.
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.
