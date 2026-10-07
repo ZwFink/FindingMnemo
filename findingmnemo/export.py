@@ -22,7 +22,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from mneme.recorded_execution import KernelSource, RecordedExecution
 
@@ -130,13 +130,14 @@ class _Program:
         self.launch_paths = stacks.load_launch_paths(os.path.join(run_dir, "stacks"), llvm_bin)
         kernel_names = sorted({r["KernelName"] for _, r in records}
                               | {p.kernel for p in self.launch_paths})
-        self.gpu_arch, code = isa.disassemble_kernels(self.run["executable"], kernel_names, llvm_bin)
+        self.gpu_arch, self.code = isa.disassemble_kernels(self.run["executable"], kernel_names,
+                                                           llvm_bin)
         self.demangled = _demangle(kernel_names, llvm_bin)
 
         for path, record in records:
-            self._add_recorded_kernel(record, path, record_dir, code[record["KernelName"]], llvm_bin)
+            self._add_recorded_kernel(record, path, record_dir, llvm_bin)
         for launch in self.launch_paths:
-            self._add_launch(launch, code[launch.kernel])
+            self._add_launch(launch)
 
         self.runtime = {fn.name for fn in self.functions.values()
                         if _is_runtime_function(fn.name, fn.file)}
@@ -165,8 +166,20 @@ class _Program:
         elif launches is not None:
             edge.launches += launches
 
+    def kernel_code(self, kernel: str, units: Iterable[str] = ()) -> isa.KernelCode:
+        """The kernel's code, from the code object of one of ``units`` if its
+        translation units compiled it differently."""
+        codes = self.code.get(kernel, [])
+        code = isa.choose(codes, units)
+        if code is None:
+            print(f"findingmnemo export: no ISA for {self.demangled.get(kernel, kernel)}: "
+                  f"{len(codes)} translation units compiled it differently, and none is the "
+                  f"one Mneme recorded", file=sys.stderr)
+            return isa.KernelCode(None, codes[0].name, codes[0].file, codes[0].line)
+        return code
+
     def _add_recorded_kernel(self, record: dict, record_path: str, record_dir: str,
-                             code: isa.KernelCode, llvm_bin: str):
+                             llvm_bin: str):
         ir_texts, parsed, units = [], {}, []
         for module in record["Modules"]:
             text, functions = ir.analyze_bitcode(os.path.join(record_dir, module), llvm_bin)
@@ -196,6 +209,7 @@ class _Program:
                 if callee:
                     self.add_edge(caller, callee, "ir", *(site or (None, None)))
 
+        code = self.kernel_code(name, (u.file for u in units))
         kernel = self.function("kernel", name, record["DemangledName"], code.name,
                                record.get("SourceFile") or code.file, record.get("SourceLine"))
         if record.get("SourceLine"):
@@ -245,7 +259,9 @@ class _Program:
                 return unit, views.views[fn.file]
         return None
 
-    def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
+    def _add_launch(self, launch: stacks.LaunchPath):
+        known = self.functions.get(("kernel", launch.kernel))
+        code = known.kernel.code if known and known.kernel else self.kernel_code(launch.kernel)
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
                                code.file)
         if kernel.kernel is None:
