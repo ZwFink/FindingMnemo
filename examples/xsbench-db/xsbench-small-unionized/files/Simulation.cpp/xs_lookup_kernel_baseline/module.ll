@@ -1,5 +1,5 @@
-; ModuleID = '/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-small-unionized/record-db/RecordedIR_14062985557092847525.bc'
-source_filename = "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+; ModuleID = '/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/runs/xsbench-small-unionized/record-db/RecordedIR_6593613289665214413.bc'
+source_filename = "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp"
 target datalayout = "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9"
 target triple = "amdgcn-amd-amdhsa"
 
@@ -820,8 +820,8 @@ attributes #10 = { convergent nounwind willreturn memory(none) }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!2, !3, !4, !5, !6, !7}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "AMD clang version 19.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-6.4.0 25133 c7fe45cf4b819c5991fe208aaa96edf142730f1d)", isOptimized: true, runtimeVersion: 0, emissionKind: LineTablesOnly, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "Simulation.cpp", directory: "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip", checksumkind: CSK_MD5, checksum: "53acddeb86b787f1977b544879bf286f")
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "AMD clang version 19.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-6.4.0 25133 c7fe45cf4b819c5991fe208aaa96edf142730f1d)", isOptimized: true, flags: "/opt/rocm-6.4.0/lib/llvm/bin/clang-19 -Wl,--disable-new-dtags --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr --rocm-path=/opt/rocm-6.4.0/lib/llvm/bin/../../.. -frtlib-add-rpath --driver-mode=g++ --offload-arch=gfx942 -std=c++14 -O3 -g -grecord-command-line -fpass-plugin=/p/vast1/fink12/proteus/install-tuolumne-rocm-6.4.0/lib64/libProteusPass.so -fplugin=/p/vast1/fink12/proteus/install-tuolumne-rocm-6.4.0/lib64/libProteusPass.so -fno-discard-value-names -ftrivial-auto-var-init=zero -Xclang -mllvm -Xclang -force-proteus-jit-annotate-all -c -x hip Simulation.cpp -o Simulation.o -mcpu=gfx942", runtimeVersion: 0, emissionKind: LineTablesOnly, splitDebugInlining: false, nameTableKind: None)
+!1 = !DIFile(filename: "Simulation.cpp", directory: "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip", checksumkind: CSK_MD5, checksum: "53acddeb86b787f1977b544879bf286f")
 !2 = !{i32 1, !"amdhsa_code_object_version", i32 600}
 !3 = !{i32 1, !"amdgpu_printf_kind", !"hostcall"}
 !4 = !{i32 7, !"Dwarf Version", i32 5}

@@ -1,10 +1,10 @@
 {
   "name": "XSBench",
-  "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+  "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/XSBench",
   "arguments": ["-m", "event", "-s", "small", "-G", "unionized"],
-  "hostname": "tuolumne2152",
-  "recorded_at": "2026-10-05T17:22:06",
+  "hostname": "tuolumne2149",
+  "recorded_at": "2026-10-07T14:46:15",
   "gpu_arch": "gfx942",
-  "run_dir": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-small-unionized",
+  "run_dir": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/runs/xsbench-small-unionized",
   "kernels": ["files/Simulation.cpp/xs_lookup_kernel_baseline"]
 }

@@ -2,12 +2,21 @@
   "kind": "kernel",
   "name": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
   "symbol": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 50,
   "end_line": 105,
+  "source_view": "device",
+  "source_arch": "gfx942",
+  "macro_expansions": [
+    {
+      "line": 59,
+      "macros": ["STARTING_SEED"],
+      "text": "uint64_t seed = 1070;"
+    }
+  ],
   "isa_instructions": 814,
-  "static_hash": "14062985557092847525",
-  "mneme_record": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/runs/xsbench-small-unionized/record-db/14062985557092847525.json",
+  "static_hash": "6593613289665214413",
+  "mneme_record": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/runs/xsbench-small-unionized/record-db/6593613289665214413.json",
   "calls": [
     {
       "function": "fast_forward_LCG(unsigned long, unsigned long)",

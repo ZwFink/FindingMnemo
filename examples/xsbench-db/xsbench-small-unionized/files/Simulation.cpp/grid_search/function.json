@@ -2,9 +2,11 @@
   "kind": "device",
   "name": "grid_search(long, double, double*)",
   "symbol": "_Z11grid_searchldPd",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 247,
   "end_line": 267,
+  "source_view": "device",
+  "source_arch": "gfx942",
   "called_by": [
     {
       "function": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",

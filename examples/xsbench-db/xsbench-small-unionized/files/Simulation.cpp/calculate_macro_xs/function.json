@@ -2,9 +2,23 @@
   "kind": "device",
   "name": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
   "symbol": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 193,
   "end_line": 242,
+  "source_view": "device",
+  "source_arch": "gfx942",
+  "macro_expansions": [
+    {
+      "line": 213,
+      "macros": ["UNIONIZED"],
+      "text": "if( grid_type == 0 )"
+    },
+    {
+      "line": 215,
+      "macros": ["HASH"],
+      "text": "else if( grid_type == 2 )"
+    }
+  ],
   "calls": [
     {
       "function": "grid_search(long, double, double*)",
