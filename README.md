@@ -127,6 +127,7 @@ Every function directory has a `function.json`:
 | `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
 | `file`, `line`, `end_line` | definition; `end_line` (the closing brace) for kernels and device functions recorded by Mneme |
 | `source_arch` | the GPU architecture whose compile `source.<ext>` shows |
+| `compiler_generated` | `true` for device code the compiler wrote, such as a copy constructor the class does not declare; it has no `source.<ext>` or `end_line`, and `line` is where the debug info puts it, a line naming the class |
 | `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
@@ -216,6 +217,9 @@ file and the reason, whenever a kernel's or device function's source cannot be
 cut this way: the debug info has no command line or no source location for
 it, preprocessing fails, its file is not part of the recorded compile, or its
 closing brace is not found. It never falls back to the source as written.
+Device code the compiler wrote, such as a copy constructor the class does not
+declare, has no text to cut; it has `"compiler_generated": true` instead of a
+source.
 
 Example queries:
 

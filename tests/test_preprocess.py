@@ -636,6 +636,47 @@ def test_export_writes_the_device_view(tmp_path):
 
 
 @needs_clang
+def test_compiler_generated_functions_have_no_source(tmp_path):
+    (tmp_path / "copy.hip").write_text(_src("""
+        #include <hip/hip_runtime.h>
+        struct Inner {
+          int v;
+          __device__ Inner(const Inner &o) : v(o.v + 1) {}
+          __device__ Inner(int x) : v(x) {}
+        };
+        struct hip_pol {};
+        // As RAJA declares its reducers. The debug info puts the copy
+        // constructor of the specialization on the primary template.
+        template <typename P, typename T> class ReduceSum;
+        template <typename T> class ReduceSum<hip_pol, T> {
+        public:
+          Inner in;
+          __device__ ReduceSum(int x) : in(x) {}
+        };
+        template <typename T> struct Holder {
+          Inner in;
+        };
+        __device__ int use(ReduceSum<hip_pol, int> r, Holder<int> h) { return r.in.v + h.in.v; }
+        __global__ void k(int *p) {
+          ReduceSum<hip_pol, int> r(p[0]);
+          Holder<int> h{Inner(p[0])};
+          p[0] = use(r, h);
+        }
+    """))
+    module, = _compile(tmp_path, "copy.hip", "-O0")
+    unit, = compile_units(module)
+    prog = _program_with_views(module, [unit])
+    functions = {fn.name: fn for fn in prog.functions.values()}
+    copies = ["_ZN9ReduceSumI7hip_poliEC2ERKS1_", "_ZN6HolderIiEC2ERKS0_"]
+    assert sorted(name for name, fn in functions.items() if fn.ir_fn.artificial) == sorted(copies)
+    for name in copies:
+        assert _function_source(prog, functions[name]) == (None, {"compiler_generated": True})
+        assert functions[name].end_line is None
+    assert _function_source(prog, functions["_ZN9ReduceSumI7hip_poliEC2Ei"])[0] == \
+        "  __device__ ReduceSum(int x) : in(x) {}\n"
+
+
+@needs_clang
 def test_preprocessing_again_writes_nothing_into_the_build(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     (tmp_path / "lib dir").mkdir()

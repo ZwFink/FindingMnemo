@@ -444,10 +444,12 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
 
     Directives and lines removed by conditional compilation are blank, so line
     numbers from the debug info still apply. Only device code Mneme recorded
-    has a source.
+    has a source, and only if it was written, not made by the compiler.
     """
     if not fn.ir_fn:
         return None, {}
+    if fn.ir_fn.artificial:
+        return None, {"compiler_generated": True}
     if not fn.file or not fn.line:
         raise SystemExit(f"findingmnemo export: the debug info has no source location for "
                          f"{fn.display_name}")
