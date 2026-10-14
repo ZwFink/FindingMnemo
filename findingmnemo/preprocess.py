@@ -127,18 +127,21 @@ def compile_units(ir_text: str) -> List[CompileUnit]:
 # build's plugins are removed, so nothing else about the command, such as
 # which options take a value, needs to be known.
 _DROP = {
-    # Dependency lists and files.
-    "-M", "-MM", "-MD", "-MMD", "-MP", "-MG", "-MV",
+    # Dependency lists instead of the source, and dependency files. -MG is an
+    # error without -M or -MM. The options that only modify these (-MF, -MT,
+    # -MQ, -MP, -MV) do nothing once they are gone.
+    "-M", "-MM", "-MD", "-MMD", "-MG",
     # Output without line markers, with comments in macro expansions, with
     # only macros, or with nothing at all.
-    "-P", "-CC", "-dM", "-dD", "-dI", "-dN", "-dE", "-###",
+    "-P", "-CC", "-dM", "-###",
 }
 # -mcpu= is recorded for the device compile only; the host compile rejects it.
-# The -M options here are the attached forms of _DROP_WITH_VALUE.
-_DROP_PREFIXES = ("-mcpu=", "-fplugin=", "-fpass-plugin=", "-fplugin-arg-", "-mllvm=",
-                  "-MF", "-MT", "-MQ", "-MJ")
-# Removed together with the next argument, their value.
-_DROP_WITH_VALUE = {"-MF", "-MT", "-MQ", "-MJ", "-mllvm"}
+# A frontend plugin is loaded even to preprocess, and fails if it moved; pass
+# plugins are not loaded. -MJ writes a compilation database entry.
+_DROP_PREFIXES = ("-mcpu=", "-fplugin=", "-fplugin-arg-", "-mllvm=", "-MJ")
+# Removed together with the next argument, their value. Without its plugin,
+# a plugin's -mllvm options are unknown, and which ones are its cannot be told.
+_DROP_WITH_VALUE = {"-MJ", "-mllvm"}
 # -Xclang values that load plugins or pass LLVM options; the next -Xclang
 # value belongs to them.
 _XCLANG_PAIRS = {"-mllvm", "-load", "-plugin", "-add-plugin"}

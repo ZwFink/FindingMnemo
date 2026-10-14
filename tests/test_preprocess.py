@@ -69,16 +69,19 @@ def test_preprocess_argv_removes_only_what_breaks_preprocessing():
         # Values the -X options pass on stay with them, even ones that look
         # like options to remove.
         "-Xclang", "-fno-validate-pch", "-Xlinker", "-M", "-Xarch_device", "-DDEVICE",
+        # Harmless once the dependency options are removed, or ignored by -E.
+        "-MF", "k.d", "-MT", "k.o", "-MQk.o", "-MP", "-MV", "-dD", "-dI",
+        "-fpass-plugin=/p/libProteusPass.so",
         # An option the code knows nothing about keeps its value.
         "-unknown-separate", "value", "-Wl,--as-needed", "-lm", "other.o",
         "-x", "hip", "k.hip", "-x", "none", "lib.a",
     ]
     removed = [
         # Dependency files and lists, and output that is not the source.
-        "-MD", "-MF", "k.d", "-MT", "k.o", "-MQk.o", "-MJcdb.json", "-M", "-MM", "-MMD", "-MP",
+        "-MD", "-MJcdb.json", "-MJ", "cdb.json", "-M", "-MM", "-MMD", "-MG",
         "-P", "-CC", "-dM", "-###",
-        # Proteus and other plugins and LLVM options.
-        "-fpass-plugin=/p/libProteusPass.so", "-fplugin=/p/libProteusPass.so",
+        # Frontend plugins and LLVM options.
+        "-fplugin=/p/libProteusPass.so",
         "-Xclang", "-mllvm", "-Xclang", "-force-proteus-jit-annotate-all",
         "-Xclang", "-load", "-Xclang", "x.so", "-mllvm", "-some-option", "-mllvm=-other",
         # Recorded for the device compile; the host compile rejects it.

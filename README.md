@@ -211,14 +211,14 @@ with a warning).
 The recorded command is rerun as it was, with `-E`, `-o -` and the module's
 architecture appended; the driver lets these win over the build's own `-c`,
 `-o` and `--offload-arch`. Only options that would still change what is
-printed or write a file (`-M`, `-MD`, `-P`, `-dM`, ...), plugins (Proteus) and
-`-mllvm` options, and the device-only `-mcpu=` are removed. After
-preprocessing, the export checks the view against the debug info: if any line
-the IR attributes code to is one the view says was not compiled, the view is
-wrong (the file was preprocessed differently from the build) and the export
-fails. Without a recorded command line, or when preprocessing fails,
-`source_view` is `as_written` and the source is the function's lines as
-written, still ending at its closing brace.
+printed or write a file (`-M`, `-MD`, `-P`, `-dM`, ...), frontend plugins
+(Proteus's `-fplugin=`) and `-mllvm` options, and the device-only `-mcpu=` are
+removed. After preprocessing, the export checks the view against the debug
+info: if any line the IR attributes code to is one the view says was not
+compiled, the view is wrong (the file was preprocessed differently from the
+build) and the export fails. Without a recorded command line, or when
+preprocessing fails, `source_view` is `as_written` and the source is the
+function's lines as written, still ending at its closing brace.
 
 Example queries:
 
