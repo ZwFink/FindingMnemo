@@ -458,11 +458,7 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
         end = view.function_end(fn.line, last)
         if end:
             fn.end_line = end
-            info = {"source_view": "device", "source_arch": unit.arch}
-            expansions = view.expansions(fn.line, end)
-            if expansions:
-                info["macro_expansions"] = expansions
-            return view.text(fn.line, end), info
+            return view.text(fn.line, end), {"source_view": "device", "source_arch": unit.arch}
     source = k.source.text if k and k.source else None
     if fn.kind == "device" and fn.end_line and fn.file in prog.source_copies:
         with open(prog.source_copies[fn.file], newline="") as f:

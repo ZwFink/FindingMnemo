@@ -2,24 +2,16 @@
 
 An application built with ``-grecord-command-line`` stores its compile command
 in each compile unit of the debug info, and Proteus keeps it when it embeds the
-device bitcode that Mneme records. Rerunning that command with ``-E`` for the
-recorded GPU architecture resolves conditional compilation exactly as the
-device compile did. Clang's line markers tie every preprocessed line back to
-its original file and line, so the result is a *view* of each original file
-with one entry per line:
+device bitcode that Mneme records. Rerunning that command with ``-E
+-fdirectives-only`` for the recorded GPU architecture resolves ``#include``s
+and conditional compilation exactly as the device compile did, but leaves
+macros as written. Clang's line markers tie every printed line back to its
+original file and line, so a line was compiled if it was printed.
 
-  same       compiled as written
-  expanded   compiled, with macros expanded (the expansion is kept)
-  joined     part of a macro invocation expanded on an earlier line
-  empty      compiled, but its macros expanded to nothing
-  pragma     a ``#pragma`` the compiler saw
-  directive  any other preprocessor directive
-  skipped    removed by conditional compilation
-  blank      empty in the original
-
-The device source of a function is its original lines with directives and
-skipped lines left blank, so line numbers from the debug info still apply.
-Macros stay as written; ``expansions`` lists the ones the project defined.
+The device source of a function is its original lines with directives and the
+lines conditional compilation removed left blank, so line numbers from the
+debug info still apply. Clang prints code again token by token, changing its
+whitespace, so the text comes from the original file.
 """
 
 import hashlib
@@ -30,9 +22,6 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from .ir import _parse_metadata
-
-# Line kinds whose text is not part of the device source.
-REMOVED = ("directive", "skipped")
 
 _ESCAPE = re.compile(r"\\(\\|[0-9A-Fa-f]{2})")
 _TARGET_CPU = re.compile(r'"target-cpu"="([^"]+)"')
@@ -131,9 +120,8 @@ _DROP = {
     # error without -M or -MM. The options that only modify these (-MF, -MT,
     # -MQ, -MP, -MV) do nothing once they are gone.
     "-M", "-MM", "-MD", "-MMD", "-MG",
-    # Output without line markers, with comments in macro expansions, with
-    # only macros, or with nothing at all.
-    "-P", "-CC", "-dM", "-###",
+    # Output without line markers, with only macros, or with nothing at all.
+    "-P", "-dM", "-###",
 }
 # -mcpu= is recorded for the device compile only; the host compile rejects it.
 # A frontend plugin is loaded even to preprocess, and fails if it moved; pass
@@ -148,12 +136,13 @@ _XCLANG_PAIRS = {"-mllvm", "-load", "-plugin", "-add-plugin"}
 
 
 def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
-                    compiler: Optional[str] = None) -> List[str]:
+                    compiler: Optional[str] = None, expand_macros: bool = False) -> List[str]:
     """The recorded command, changed to preprocess the unit's main file for its
     GPU architecture and write the result to stdout.
 
-    ``source`` replaces the main file, e.g. with a copy of it; ``compiler``
-    replaces the recorded compiler.
+    Only directives are processed, and comments are kept, unless
+    ``expand_macros``. ``source`` replaces the main file, e.g. with a copy of
+    it; ``compiler`` replaces the recorded compiler.
     """
     args = unit.argv[1:]
     out: List[str] = []
@@ -186,8 +175,8 @@ def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
         i += 1
     if unit.arch:
         out += ["--no-offload-arch=all", f"--offload-arch={unit.arch}"]
-    out += ["-E", "-C", "-dD", "--offload-device-only", "-Wno-unused-command-line-argument",
-            "-o", "-"]
+    out += ["-E"] + ([] if expand_macros else ["-C", "-fdirectives-only"])
+    out += ["--offload-device-only", "-Wno-unused-command-line-argument", "-o", "-"]
     if source:
         out += ["-iquote", os.path.dirname(unit.file)]
     if not found:
@@ -196,134 +185,37 @@ def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
 
 
 _MARKER = re.compile(r'^# (\d+) "((?:[^"\\]|\\.)*)"((?: \d+)*)\s*$')
-_DIRECTIVE_ECHO = re.compile(r"^#\s*(define|undef)\s+([A-Za-z_]\w*)")
+_LINE_DIRECTIVE = re.compile(r"^[ \t]*#[ \t]*(line\b|\d)", re.M)
+_DIRECTIVE = re.compile(r"^\s*#")
+_PRAGMA = re.compile(r"^\s*#\s*pragma\b")
 
 
 def _c_string(value: str) -> str:
     return re.sub(r"\\(.)", r"\1", value)
 
 
-@dataclass
-class _Output:
-    """Preprocessed text of one file, by original line."""
-    # Non-empty preprocessed text of each line.
-    text: Dict[int, str] = field(default_factory=dict)
-    # Lines with any trace in the output: text, an echoed #define or #undef,
-    # a #pragma, or an #include that was entered.
-    evidence: Set[int] = field(default_factory=set)
-    system: bool = False
-
-
 def parse_output(text: str, directory: str, rename: Optional[Dict[str, str]] = None
-                 ) -> Tuple[Dict[str, _Output], Dict[str, str]]:
-    """Split ``clang -E -C -dD`` output by original file and line.
-
-    Returns the output of each file, by absolute path, and the file that last
-    defined each macro (``<command line>`` and ``<built-in>`` for those).
-    """
-    files: Dict[str, _Output] = {}
-    macros: Dict[str, str] = {}
+                 ) -> Dict[str, Dict[int, str]]:
+    """Split ``clang -E`` output into the non-empty text of each original
+    file's lines, by the file's absolute path."""
+    files: Dict[str, Dict[int, str]] = {}
     rename = rename or {}
-    cur: Optional[_Output] = None
-    cur_path, line = None, 0
+    cur: Optional[Dict[int, str]] = None
+    line = 0
     for raw in text.split("\n"):
         m = _MARKER.match(raw)
         if m:
             name = _c_string(m.group(2))
-            flags = m.group(3).split()
             path = name if name.startswith("<") else os.path.normpath(os.path.join(directory, name))
-            path = rename.get(path, path)
-            if "2" in flags:
-                # Back from an include: the #include line was the one before.
-                files.setdefault(path, _Output()).evidence.add(int(m.group(1)) - 1)
-            cur_path, line = path, int(m.group(1))
-            cur = files.setdefault(path, _Output())
-            if "3" in flags:
-                cur.system = True
+            cur = files.setdefault(rename.get(path, path), {})
+            line = int(m.group(1))
             continue
         if cur is None:
             continue
-        d = _DIRECTIVE_ECHO.match(raw)
-        if d:
-            if d.group(1) == "define":
-                macros[d.group(2)] = cur_path
-            else:
-                macros.pop(d.group(2), None)
-            cur.evidence.add(line)
-        elif raw.strip():
-            cur.text[line] = raw
-            cur.evidence.add(line)
+        if raw.strip():
+            cur[line] = raw
         line += 1
-    return files, macros
-
-
-_LINE_DIRECTIVE = re.compile(r"^[ \t]*#[ \t]*(line\b|\d)", re.M)
-_CONDITIONAL = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|elifdef|elifndef|else|endif)\b")
-_DIRECTIVE = re.compile(r"^\s*#")
-_PRAGMA = re.compile(r"^\s*#\s*pragma\b")
-
-
-def _directive_lines(lines: List[str]) -> Tuple[Set[int], Dict[int, str]]:
-    """Line numbers of preprocessor directives, including continuation lines,
-    and the conditional keyword on each conditional directive's first line.
-    Lines inside block comments are not directives."""
-    directives: Set[int] = set()
-    conditionals: Dict[int, str] = {}
-    in_comment, continued = False, False
-    for n, text in enumerate(lines, 1):
-        if continued:
-            directives.add(n)
-            continued = text.rstrip("\r\n").endswith("\\")
-            continue
-        if not in_comment and _DIRECTIVE.match(text):
-            directives.add(n)
-            m = _CONDITIONAL.match(text)
-            if m:
-                conditionals[n] = m.group(1)
-            continued = text.rstrip("\r\n").endswith("\\")
-            continue
-        in_comment = _ends_in_comment(text, in_comment)
-    return directives, conditionals
-
-
-def _ends_in_comment(text: str, in_comment: bool) -> bool:
-    """Whether a block comment is still open at the end of the line."""
-    state = [in_comment]
-    for _ in _lex_line(text, state):
-        pass
-    return state[0]
-
-
-def _live_lines(lines: List[str], conditionals: Dict[int, str], evidence: Set[int]) -> List[bool]:
-    """Whether each line is in a taken branch of every conditional around it.
-
-    A branch was taken if anything inside it left a trace in the output. A
-    branch without any trace could only hold blank lines, comments outside
-    the ``-C`` output, or macros that expand to nothing; it is treated as not
-    taken, which changes no generated code.
-    """
-    n_lines = len(lines)
-    live = [True] * (n_lines + 1)
-    # Each open group: the branches so far, as [start line, end line].
-    stack: List[List[List[int]]] = []
-    branches: List[List[int]] = []
-    for n in range(1, n_lines + 1):
-        kind = conditionals.get(n)
-        if kind in ("if", "ifdef", "ifndef"):
-            stack.append([[n + 1, n_lines]])
-        elif kind in ("elif", "elifdef", "elifndef", "else") and stack:
-            stack[-1][-1][1] = n - 1
-            stack[-1].append([n + 1, n_lines])
-        elif kind == "endif" and stack:
-            stack[-1][-1][1] = n - 1
-            branches += stack.pop()
-    for group in stack:  # unterminated; the compile would have failed
-        branches += group
-    for start, end in branches:
-        if not any(start <= e <= end for e in evidence):
-            for k in range(start, end + 1):
-                live[k] = False
-    return live[1:]
+    return files
 
 
 @dataclass
@@ -331,20 +223,22 @@ class FileView:
     """One original file as a device compilation preprocessed it."""
     path: str
     lines: List[str]
-    kinds: List[str]
-    expanded: Dict[int, str]
-    # Macros used on each expanded line, by origin: project, cmdline, system, builtin.
-    used: Dict[int, Dict[str, List[str]]]
+    # Whether the device compile kept each line: code, comments and #pragmas
+    # in the branches it took, but no other directive.
+    kept: List[bool]
+    # The code on each line with macros expanded, which can hide braces.
+    code: Dict[int, str]
 
-    def kind(self, line: int) -> str:
-        return self.kinds[line - 1]
+    def compiled(self, line: int) -> bool:
+        return 0 < line <= len(self.kept) and self.kept[line - 1]
 
     def text(self, start: int, end: int) -> str:
-        """Lines ``start`` to ``end`` with directives and skipped lines blank."""
+        """Lines ``start`` to ``end``, with the ones not kept blank. Lines with
+        only whitespace stay as they are."""
         out = []
         for n in range(start, min(end, len(self.lines)) + 1):
             text = self.lines[n - 1]
-            if self.kinds[n - 1] in REMOVED:
+            if not self.kept[n - 1] and text.strip():
                 text = "\r\n" if text.endswith("\r\n") else ("\n" if text.endswith("\n") else "")
             out.append(text)
         return "".join(out)
@@ -352,14 +246,7 @@ class FileView:
     def function_end(self, start: int, last_code_line: Optional[int] = None) -> Optional[int]:
         """The line of the closing brace of the function that starts on
         ``start``, counting only what the device compiled."""
-        code: List[Optional[str]] = []
-        for n, (text, kind) in enumerate(zip(self.lines, self.kinds), 1):
-            if kind in REMOVED or kind in ("joined", "pragma"):
-                code.append(None)
-            elif kind == "expanded":
-                code.append(self.expanded[n])
-            else:
-                code.append(text)
+        code = [self.code.get(n) for n in range(1, len(self.lines) + 1)]
         return function_end(code, start, last_code_line)
 
     def contradiction(self, lines: Iterable[int]) -> Optional[int]:
@@ -368,97 +255,36 @@ class FileView:
         e.g. because the file was preprocessed with other options or headers
         than the build used."""
         for n in sorted(set(lines)):
-            if n > len(self.kinds) or (n > 0 and self.kinds[n - 1] in REMOVED + ("blank",)):
+            # Line 0 is code the compiler made up.
+            if n and not self.compiled(n):
                 return n
         return None
 
-    def expansions(self, start: int, end: int) -> List[dict]:
-        """Expanded lines in ``start``..``end`` that use the project's own or
-        command-line macros."""
-        out = []
-        for n in range(start, min(end, len(self.lines)) + 1):
-            used = self.used.get(n, {})
-            names = [name for origin in ("project", "cmdline") for name in used.get(origin, [])]
-            if names:
-                out.append({"line": n, "macros": names, "text": self.expanded[n].strip()})
-        return out
 
-
-_IDENT = re.compile(r"[A-Za-z_]\w*")
-
-
-def build_view(path: str, source: str, output: _Output, macros: Dict[str, str],
-               files: Dict[str, _Output]) -> FileView:
+def build_view(path: str, source: str, printed: Dict[int, str], expanded: Dict[int, str]
+               ) -> FileView:
+    """The view of a file from its lines as printed with only directives
+    processed, and with macros expanded."""
     lines = source.splitlines(keepends=True)
-    directives, conditionals = _directive_lines(lines)
-    live = _live_lines(lines, conditionals, output.evidence)
-    kinds: List[str] = []
-    used: Dict[int, Dict[str, List[str]]] = {}
-    open_parens = 0
+    kept: List[bool] = []
+    in_comment = [False]
     for n, text in enumerate(lines, 1):
-        out = output.text.get(n)
-        if not live[n - 1]:
-            kind = "skipped"
-        elif n in directives:
-            kind = "pragma" if _PRAGMA.match(text) and out is not None else "directive"
-        elif not text.strip():
-            kind = "blank"
-        elif out is None:
-            kind = "joined" if open_parens > 0 else "empty"
-        elif _squash(out) == _squash(text):
-            kind = "same"
-        else:
-            kind = "expanded"
-        if kind in ("same", "expanded", "empty"):
-            open_parens = _paren_balance(text)
-        elif kind == "joined":
-            open_parens += _paren_balance(text)
-        elif kind != "blank":
-            open_parens = 0
-        if kind == "expanded":
-            used[n] = _macros_used(text, macros, files)
-        kinds.append(kind)
-    expanded = {n: output.text[n] for n, k in enumerate(kinds, 1) if k == "expanded"}
-    return FileView(path, lines, kinds, expanded, used)
-
-
-def _squash(text: str) -> str:
-    return re.sub(r"\s+", "", text)
-
-
-def _paren_balance(text: str) -> int:
-    balance = 0
-    for kind, c in _lex_line(text, [False]):
-        if kind == "code":
-            balance += {"(": 1, ")": -1}.get(c, 0)
-    return balance
-
-
-def _macros_used(text: str, macros: Dict[str, str], files: Dict[str, _Output]) -> Dict[str, List[str]]:
-    used: Dict[str, List[str]] = {}
-    code = "".join(c if kind == "code" else " " for kind, c in _lex_line(text, [False], True))
-    for name in _IDENT.findall(code):
-        where = macros.get(name)
-        if where is None:
+        out = printed.get(n)
+        if out is None:
+            # Code continued with a backslash is printed on its first line.
+            kept.append(n > 1 and kept[-1] and lines[n - 2].rstrip("\r\n").endswith("\\"))
             continue
-        if where == "<command line>":
-            origin = "cmdline"
-        elif where.startswith("<"):
-            origin = "builtin"
-        elif files.get(where) and files[where].system:
-            origin = "system"
-        else:
-            origin = "project"
-        names = used.setdefault(origin, [])
-        if name not in names:
-            names.append(name)
-    return used
+        directive = not in_comment[0] and _DIRECTIVE.match(out) and not _PRAGMA.match(out)
+        kept.append(not directive)
+        for _ in _lex_line(out, in_comment):
+            pass
+    code = {n: text for n, text in expanded.items() if not _DIRECTIVE.match(text)}
+    return FileView(path, lines, kept, code)
 
 
-def _lex_line(text: str, state: List[bool], spaces: bool = False) -> Iterator[Tuple[str, str]]:
+def _lex_line(text: str, state: List[bool]) -> Iterator[Tuple[str, str]]:
     """Yield ("code", char) for characters outside comments and literals, and
-    ("literal", "x") once per string or character literal; with ``spaces``,
-    also ("space", " ") for whitespace and comments. ``state[0]`` says
+    ("literal", "x") once per string or character literal. ``state[0]`` says
     whether a block comment is open, and is updated."""
     i, n = 0, len(text)
     while i < n:
@@ -469,8 +295,6 @@ def _lex_line(text: str, state: List[bool], spaces: bool = False) -> Iterator[Tu
                 return
             state[0] = False
             i = end + 2
-            if spaces:
-                yield "space", " "
             continue
         if text.startswith("//", i):
             return
@@ -493,8 +317,6 @@ def _lex_line(text: str, state: List[bool], spaces: bool = False) -> Iterator[Tu
             continue
         if not c.isspace():
             yield "code", c
-        elif spaces:
-            yield "space", " "
         i += 1
 
 
@@ -633,21 +455,23 @@ def preprocess(unit: CompileUnit, wanted: Set[str], copies: Optional[Dict[str, s
     compiler = None
     if not os.path.isfile(unit.argv[0]) and fallback_compiler:
         compiler = fallback_compiler
-    argv = preprocess_argv(unit, source, compiler)
-    try:
-        res = subprocess.run(argv, cwd=unit.directory, capture_output=True, text=True,
-                             timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return UnitViews(error=f"could not run {argv[0]}: {e}")
-    if res.returncode:
-        last = res.stderr.strip().splitlines()[-1:] or [""]
-        return UnitViews(error=f"{argv[0]} failed: {last[0]}")
     rename = {os.path.normpath(source): unit.file} if source else {}
-    files, macros = parse_output(res.stdout, unit.directory, rename)
+    outputs = []
+    for expand_macros in (False, True):
+        argv = preprocess_argv(unit, source, compiler, expand_macros)
+        try:
+            res = subprocess.run(argv, cwd=unit.directory, capture_output=True, text=True,
+                                 timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return UnitViews(error=f"could not run {argv[0]}: {e}")
+        if res.returncode:
+            last = res.stderr.strip().splitlines()[-1:] or [""]
+            return UnitViews(error=f"{argv[0]} failed: {last[0]}")
+        outputs.append(parse_output(res.stdout, unit.directory, rename))
+    printed, expanded = outputs
     result = UnitViews(used_copy=bool(source), compiler=compiler)
     for path in wanted:
-        output = files.get(path)
-        if output is None:
+        if path not in printed:
             continue
         read_from = source if source and path == unit.file else path
         expected = unit.checksums.get(path)
@@ -661,5 +485,5 @@ def preprocess(unit: CompileUnit, wanted: Set[str], copies: Optional[Dict[str, s
         if _LINE_DIRECTIVE.search(text):
             # The debug info's line numbers follow #line, not the file.
             continue
-        result.views[path] = build_view(path, text, output, macros, files)
+        result.views[path] = build_view(path, text, printed[path], expanded.get(path, {}))
     return result

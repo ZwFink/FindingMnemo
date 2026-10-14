@@ -55,7 +55,7 @@ def _unit(argv, arch="gfx942"):
     return CompileUnit(argv, "/src", "/src/k.hip", arch)
 
 
-TAIL = ["--no-offload-arch=all", "--offload-arch=gfx942", "-E", "-C", "-dD",
+TAIL = ["--no-offload-arch=all", "--offload-arch=gfx942", "-E", "-C", "-fdirectives-only",
         "--offload-device-only", "-Wno-unused-command-line-argument", "-o", "-"]
 
 
@@ -70,7 +70,7 @@ def test_preprocess_argv_removes_only_what_breaks_preprocessing():
         # like options to remove.
         "-Xclang", "-fno-validate-pch", "-Xlinker", "-M", "-Xarch_device", "-DDEVICE",
         # Harmless once the dependency options are removed, or ignored by -E.
-        "-MF", "k.d", "-MT", "k.o", "-MQk.o", "-MP", "-MV", "-dD", "-dI",
+        "-MF", "k.d", "-MT", "k.o", "-MQk.o", "-MP", "-MV", "-dD", "-dI", "-CC",
         "-fpass-plugin=/p/libProteusPass.so",
         # An option the code knows nothing about keeps its value.
         "-unknown-separate", "value", "-Wl,--as-needed", "-lm", "other.o",
@@ -79,7 +79,7 @@ def test_preprocess_argv_removes_only_what_breaks_preprocessing():
     removed = [
         # Dependency files and lists, and output that is not the source.
         "-MD", "-MJcdb.json", "-MJ", "cdb.json", "-M", "-MM", "-MMD", "-MG",
-        "-P", "-CC", "-dM", "-###",
+        "-P", "-dM", "-###",
         # Frontend plugins and LLVM options.
         "-fplugin=/p/libProteusPass.so",
         "-Xclang", "-mllvm", "-Xclang", "-force-proteus-jit-annotate-all",
@@ -98,6 +98,9 @@ def test_preprocess_argv_uses_a_copy_and_another_compiler():
     # still find the original directory's headers.
     assert argv == ["/llvm/bin/clang", "-x", "hip", "/copy/k.hip", "-c", *TAIL,
                     "-iquote", "/src"]
+    # The second run expands macros and drops comments.
+    expanded = preprocess_argv(_unit(["clang", "k.hip"]), expand_macros=True)
+    assert expanded == ["clang", "k.hip", *[a for a in TAIL if a not in ("-C", "-fdirectives-only")]]
 
 
 def test_preprocess_argv_adds_a_main_file_the_command_does_not_name():
@@ -108,12 +111,11 @@ def test_preprocess_argv_adds_a_main_file_the_command_does_not_name():
 # Preprocessed output
 
 
+# With macros expanded.
 OUTPUT = _src("""
     # 1 "k.hip"
     # 1 "<built-in>" 1
     #define __clang__ 1
-    # 1 "<command line>" 1
-    #define FAST 1
     # 1 "<built-in>" 2
     # 1 "/rocm/include/hip.h" 1 3
     #define __device__ __attribute__((device))
@@ -124,26 +126,22 @@ OUTPUT = _src("""
     __attribute__((device)) int f(int a) {
 
       return ((a) * (a));
-    # 20 "k.hip"
+    # 9 "k.hip"
     }
 """)
 
 
-def test_parse_output_follows_markers_and_macros():
-    files, macros = parse_output(OUTPUT, "/src")
-    main = files["/src/k.hip"]
-    assert main.text == {3: "__attribute__((device)) int f(int a) {", 5: "  return ((a) * (a));",
-                         20: "}"}
-    # Lines 1 and 2 are #includes that were entered.
-    assert main.evidence == {1, 2, 3, 5, 20}
-    assert files["/rocm/include/hip.h"].system and not files["/src/inc/defs.h"].system
-    assert macros == {"__clang__": "<built-in>", "FAST": "<command line>",
-                      "__device__": "/rocm/include/hip.h", "SQUARE": "/src/inc/defs.h"}
+def test_parse_output_follows_markers():
+    files = parse_output(OUTPUT, "/src")
+    assert files["/src/k.hip"] == {3: "__attribute__((device)) int f(int a) {",
+                                   5: "  return ((a) * (a));", 9: "}"}
+    assert files["/src/inc/defs.h"] == {1: "#define SQUARE(x) ((x) * (x))"}
+    assert files["<built-in>"] == {1: "#define __clang__ 1"}
 
 
-def _view(source: str, output: str, path="/src/k.hip"):
-    files, macros = parse_output(output, "/src")
-    return build_view(path, source, files[path], macros, files)
+def _view(source: str, printed: str, expanded: str = None, path="/src/k.hip"):
+    return build_view(path, source, parse_output(printed, "/src")[path],
+                      parse_output(expanded or printed, "/src")[path])
 
 
 SOURCE = _src("""
@@ -158,11 +156,26 @@ SOURCE = _src("""
     }
 """)
 
+# SOURCE with only directives processed, and FAST defined.
+PRINTED = _src("""
+    # 1 "k.hip"
+    # 1 "/rocm/include/hip.h" 1 3
+    #define __device__ __attribute__((device))
+    # 2 "k.hip" 2
+    # 1 "./inc/defs.h" 1
+    #define SQUARE(x) ((x) * (x))
+    # 3 "k.hip" 2
+    __device__ int f(int a) {
 
-def test_view_classifies_lines():
-    view = _view(SOURCE, OUTPUT.replace('# 20 "k.hip"', '# 9 "k.hip"'))
-    assert view.kinds == ["directive", "directive", "expanded", "directive", "expanded",
-                          "directive", "skipped", "directive", "same"]
+      return SQUARE(a);
+    # 9 "k.hip"
+    }
+""")
+
+
+def test_view_keeps_what_the_device_compiled():
+    view = _view(SOURCE, PRINTED, OUTPUT)
+    assert view.kept == [False, False, True, False, True, False, False, False, True]
     assert view.text(3, 9) == _src("""
         __device__ int f(int a) {
 
@@ -173,13 +186,10 @@ def test_view_classifies_lines():
         }
     """)
     assert view.function_end(3) == 9
-    # __device__ comes from a system header, so only SQUARE is listed.
-    assert view.expansions(3, 9) == [{"line": 5, "macros": ["SQUARE"],
-                                      "text": "return ((a) * (a));"}]
 
 
 def test_view_contradicts_code_on_lines_it_does_not_compile():
-    view = _view(SOURCE, OUTPUT.replace('# 20 "k.hip"', '# 9 "k.hip"'))
+    view = _view(SOURCE, PRINTED, OUTPUT)
     # Line 0 is code the compiler made up.
     assert view.contradiction([0, 3, 5, 9]) is None
     assert view.contradiction([9, 7, 5]) == 7       # skipped
@@ -209,13 +219,12 @@ def test_view_keeps_lines_whose_macros_expand_to_nothing():
         #endif
           use(a);
     """)
-    # The comment survives -C, which shows the #else branch was taken.
-    view = _view(source, _marked({1: "#define CHECK(x)", 6: "  // checked", 11: "  use(a);"}))
-    assert view.kinds == ["directive", "directive", "skipped", "directive", "empty", "same",
-                          "directive", "directive", "skipped", "directive", "same"]
+    view = _view(source, _marked({1: "#define CHECK(x)", 5: "  CHECK(a)", 6: "  // checked",
+                                  11: "  use(a);"}))
+    assert view.kept == [False, False, False, False, True, True, False, False, False, False, True]
 
 
-def test_view_joins_multi_line_macro_calls_and_keeps_pragmas():
+def test_view_keeps_multi_line_macro_calls_and_pragmas():
     source = _src("""
         x = MAX(a,
                 b);
@@ -225,17 +234,24 @@ def test_view_joins_multi_line_macro_calls_and_keeps_pragmas():
         #if not a directive
         */
     """)
-    view = _view(source, _marked({1: "x = ((a) > (b) ? (a) : (b));", 3: "#pragma unroll",
+    view = _view(source, _marked({1: "x = MAX(a,", 2: "        b);", 3: "#pragma unroll",
                                   4: "for (;;) {}", 5: "/* a comment", 6: "#if not a directive",
-                                  7: "*/"}))
-    assert view.kinds == ["expanded", "joined", "pragma", "same", "same", "same", "same"]
+                                  7: "*/"}),
+                 _marked({1: "x = ((a) > (b) ? (a) : (b));", 3: "#pragma unroll",
+                          4: "for (;;) {}"}))
+    assert view.kept == [True] * 7
+    # Braces are counted in the expanded code, without the #pragma.
+    assert view.code == {1: "x = ((a) > (b) ? (a) : (b));", 4: "for (;;) {}"}
 
 
-def test_view_keeps_directive_continuations_out_and_crlf_line_ends():
-    source = "#define LONG(x) \\\r\n  (x)\r\nint g() {\r\n#ifdef NO\r\n  return 1;\r\n#endif\r\n  return 2;\r\n}\r\n"
-    view = _view(source, _marked({1: "#define LONG(x) (x)", 3: "int g() {", 7: "  return 2;", 8: "}"}))
-    assert view.kinds[:2] == ["directive", "directive"]
-    assert view.text(3, 8) == "int g() {\r\n\r\n\r\n\r\n  return 2;\r\n}\r\n"
+def test_view_takes_text_from_the_file_with_continued_lines_and_crlf():
+    source = ("#define LONG(x) \\\r\n  (x)\r\nint g() {\r\n#ifdef NO\r\n  return 1;\r\n"
+              "#endif\r\n\treturn \\\r\n  2;\r\n}\r\n")
+    # Clang prints spliced code on its first line and turns the tab into a space.
+    view = _view(source, _marked({1: "#define LONG(x) (x)", 3: "int g() {", 7: " return 2;",
+                                  9: "}"}))
+    assert view.kept == [False, False, True, False, False, False, True, True, True]
+    assert view.text(3, 9) == "int g() {\r\n\r\n\r\n\r\n\treturn \\\r\n  2;\r\n}\r\n"
 
 
 # Function ends
@@ -392,7 +408,7 @@ def _assert_agrees_with_ir(module, view):
         for block in fn.blocks:
             for file, line in block.lines:
                 if os.path.normpath(file) == view.path:
-                    assert view.kind(line) not in ("skipped", "directive", "blank"), (fn.name, line)
+                    assert view.contradiction([line]) is None, (fn.name, line)
 
 
 TOY = _src("""
@@ -451,8 +467,8 @@ def test_device_view_of_a_recorded_compile(tmp_path):
         return lines.index(text) + 1
 
     # -DUSE_FAST from the recorded command chose the first transform.
-    assert view.kind(line("__device__ double transform(double a) { return a * SCALE; }")) == "expanded"
-    assert view.kind(line("__device__ double transform(double a) { return SQUARE(a) + SCALE; }")) == "skipped"
+    assert view.compiled(line("__device__ double transform(double a) { return a * SCALE; }"))
+    assert not view.compiled(line("__device__ double transform(double a) { return SQUARE(a) + SCALE; }"))
 
     start = line("__device__ double helper(double a) {")
     end = view.function_end(start)
@@ -464,13 +480,11 @@ def test_device_view_of_a_recorded_compile(tmp_path):
     start = line("__global__ void kernel(double *p, int n) {")
     end = view.function_end(start)
     assert lines[end - 1] == "}" and end == len(lines)
-    assert all(view.kind(n) == "skipped" for n in range(line("#if 0") + 1, line("#endif", ) + 1)
-               if n > start)
-    assert view.kind(line("#pragma unroll")) == "pragma"
-    call = line("      p[i] = helper(SQUARE(p[i]")
-    assert (view.kind(call), view.kind(call + 1)) == ("expanded", "joined")
-    assert view.expansions(start, end) == [{
-        "line": call, "macros": ["SQUARE"], "text": "p[i] = helper(((p[i] + 1.0) * (p[i] + 1.0)));"}]
+    assert not any(view.compiled(n) for n in range(line("#if 0"), line("#endif", ) + 1)
+                   if n > start)
+    assert view.compiled(line("#pragma unroll"))
+    # The macro call stays as written, on its two lines.
+    assert "p[i] = helper(SQUARE(p[i]\n                           + 1.0));\n" in view.text(start, end)
 
 
 HEADER = _src("""
@@ -520,15 +534,15 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
         assert unit.arch == arch
         view = result.views[str(src / "main.hip")]
         _assert_agrees_with_ir(module, view)
-        assert view.kind(lines.index(kept) + 1) == "same"
-        assert view.kind(lines.index(dropped) + 1) == "skipped"
+        assert view.compiled(lines.index(kept) + 1)
+        assert not view.compiled(lines.index(dropped) + 1)
         # Braces from OPEN and CLOSE count.
         assert view.function_end(lines.index("__device__ int arch_value() OPEN") + 1) \
             == lines.index("CLOSE") + 1
         # The template in the header, found through an -I with a space in it,
         # gets a view too.
         hview = result.views[header]
-        assert hview.kinds[3:8] == ["directive", "skipped", "directive", "same", "directive"]
+        assert hview.kept[3:8] == [False, False, False, True, False]
         assert hview.function_end(3) == 9
     # Preprocessing again did not write a dependency file.
     assert not (src / "deps.d").exists()
@@ -563,8 +577,8 @@ def test_missing_compiler_falls_back_or_reports(tmp_path):
     # Without -DUSE_FAST this time.
     lines = TOY.splitlines()
     view = result.views[unit.file]
-    assert view.kind(lines.index("__device__ double transform(double a) { return a * SCALE; }") + 1) \
-        == "skipped"
+    assert not view.compiled(
+        lines.index("__device__ double transform(double a) { return a * SCALE; }") + 1)
 
 
 def test_function_end_of_a_lambda_with_a_trailing_return_type():
@@ -623,8 +637,7 @@ def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
     assert ends[("operator()", second)] == lines.index("      });") + 1
     # The whole function comes from DEFINE_ADD on one line.
     assert ends[("add_int", 3)] == 3
-    assert view.expansions(3, 3)[0]["macros"] == ["DEFINE_ADD"]
-    assert view.kind(lines.index("    a[i] = add_int(a[i], 2);") + 1) == "skipped"
+    assert not view.compiled(lines.index("    a[i] = add_int(a[i], 2);") + 1)
     template = lines.index("__global__ void forall(int n, Body body) {") + 1
     assert any(ends[k] == template + 3 for k in ends if k[1] == template)
 

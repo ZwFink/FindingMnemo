@@ -7,18 +7,6 @@
   "end_line": 190,
   "source_view": "device",
   "source_arch": "gfx942",
-  "macro_expansions": [
-    {
-      "line": 119,
-      "macros": ["NUCLIDE"],
-      "text": "if( grid_type == 1 )"
-    },
-    {
-      "line": 131,
-      "macros": ["UNIONIZED"],
-      "text": "else if( grid_type == 0) // Unionized Energy Grid - we already know the index, no binary search needed."
-    }
-  ],
   "calls": [
     {
       "function": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
