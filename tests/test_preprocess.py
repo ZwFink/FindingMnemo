@@ -280,6 +280,10 @@ def test_function_end_skips_braced_initializers_before_the_body():
           return {s.x, t.y};
         }
     """) == 4
+    # A brace after & or * outside the parameters opens the body.
+    for header in ("int& get(int* p) const& {", "void take() && {",
+                   "auto get() -> int* {", "auto get() -> int& {"):
+        assert _end(f"__device__ {header}\n  return;\n}}\n__device__ void g() {{}}") == 3
 
 
 def test_function_end_handles_member_initializers():

@@ -359,6 +359,9 @@ def function_end(code: List[Optional[str]], start: int,
                     prev in (")", "]")
                     # After the last member initializer, as in : a{1} {
                     or (prev == "}" and member_init)
+                    # After a ref-qualifier (const& {, && {) or a trailing
+                    # return type of pointer or reference (-> int* {).
+                    or (prev in ("&", "*") and paren <= 0)
                     # Outside the parameters: const, noexcept, override, a
                     # trailing return type or a member initializer.
                     or (after_word and (paren <= 0 or arrow or "".join(word) in _BODY_AFTER_WORD)))
