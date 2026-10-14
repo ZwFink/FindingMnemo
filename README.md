@@ -202,11 +202,10 @@ __device__ double helper(double a) {          __device__ double helper(double a)
 
 The function ends at the brace that closes it, counting only the code the
 device compiled, with macros expanded by a second, ordinary `-E`. Before
-preprocessing, the export checks each file against the MD5 in the debug info;
-if the main file changed since the build, it uses Mneme's copy when that
-matches. It needs the recorded compiler and headers at
-their recorded paths (or the export's own `clang` when the compiler is gone,
-with a warning).
+preprocessing, the export checks each file against the MD5 in the debug info
+and fails if one changed since the build. It needs the recorded compiler and
+headers at their recorded paths (or the export's own `clang` when the compiler
+is gone, with a warning).
 
 The recorded command is rerun as it was, with `-E`, `-o -` and the module's
 architecture appended; the driver lets these win over the build's own `-c`,

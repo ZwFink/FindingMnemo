@@ -207,8 +207,10 @@ class _Program:
                 if fn.file:
                     wanted.setdefault(unit.key, (unit, set()))[1].add(fn.file)
         for key, (unit, files) in wanted.items():
-            views = preprocess.preprocess(unit, files, self.source_copies,
-                                          os.path.join(self.llvm_bin, "clang"))
+            try:
+                views = preprocess.preprocess(unit, files, os.path.join(self.llvm_bin, "clang"))
+            except preprocess.SourceChanged as e:
+                raise SystemExit(f"findingmnemo export: {e}")
             self.unit_views[key] = views
             if views.error:
                 print(f"findingmnemo export: no device source view for {unit.file}: {views.error}",

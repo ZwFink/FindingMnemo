@@ -91,13 +91,10 @@ def test_preprocess_argv_removes_only_what_breaks_preprocessing():
     assert argv == ["/rocm/clang-19", *kept, *TAIL]
 
 
-def test_preprocess_argv_uses_a_copy_and_another_compiler():
-    argv = preprocess_argv(_unit(["clang", "-x", "hip", "./k.hip", "-c"]), source="/copy/k.hip",
+def test_preprocess_argv_uses_another_compiler():
+    argv = preprocess_argv(_unit(["clang", "-x", "hip", "./k.hip", "-c"]),
                            compiler="/llvm/bin/clang")
-    # The copy takes the main file's place, after its -x. Quoted includes
-    # still find the original directory's headers.
-    assert argv == ["/llvm/bin/clang", "-x", "hip", "/copy/k.hip", "-c", *TAIL,
-                    "-iquote", "/src"]
+    assert argv == ["/llvm/bin/clang", "-x", "hip", "./k.hip", "-c", *TAIL]
     # The second run expands macros and drops comments.
     expanded = preprocess_argv(_unit(["clang", "k.hip"]), expand_macros=True)
     assert expanded == ["clang", "k.hip", *[a for a in TAIL if a not in ("-C", "-fdirectives-only")]]
@@ -458,7 +455,7 @@ def test_device_view_of_a_recorded_compile(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST")
     unit, result = _views(module)
-    assert unit.arch == "gfx942" and not result.used_copy
+    assert unit.arch == "gfx942"
     view = result.views[str(tmp_path / "toy.hip")]
     _assert_agrees_with_ir(module, view)
     lines = TOY.splitlines()
@@ -546,23 +543,6 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
         assert hview.function_end(3) == 9
     # Preprocessing again did not write a dependency file.
     assert not (src / "deps.d").exists()
-
-
-@needs_clang
-def test_changed_source_uses_mnemes_copy_or_gives_up(tmp_path):
-    (tmp_path / "toy.hip").write_text(TOY)
-    module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST")
-    copy_dir = tmp_path / "copy"
-    copy_dir.mkdir()
-    shutil.copy(tmp_path / "toy.hip", copy_dir / "toy.hip")
-    (tmp_path / "toy.hip").write_text(TOY.replace("SCALE; }", "SCALE + 1; }"))
-    unit, = compile_units(module)
-    assert preprocess(unit, {unit.file}).error.endswith("changed since it was compiled")
-    result = preprocess(unit, {unit.file}, copies={unit.file: str(copy_dir / "toy.hip")})
-    assert result.error is None and result.used_copy
-    view = result.views[unit.file]
-    _assert_agrees_with_ir(module, view)
-    assert view.lines == TOY.splitlines(keepends=True)
 
 
 @needs_clang
@@ -745,3 +725,14 @@ def test_export_fails_on_a_view_that_contradicts_the_ir(tmp_path, capsys):
         _program_with_views(module, unit)
     fast = TOY.splitlines().index("__device__ double transform(double a) { return a * SCALE; }")
     assert f"puts code of transform on line {fast + 1}," in str(exc.value)
+
+
+@needs_clang
+def test_export_fails_when_a_source_changed_since_the_build(tmp_path):
+    (tmp_path / "toy.hip").write_text(TOY)
+    module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST")
+    (tmp_path / "toy.hip").write_text(TOY.replace("SCALE; }", "SCALE + 1; }"))
+    unit, = compile_units(module)
+    with pytest.raises(SystemExit) as exc:
+        _program_with_views(module, unit)
+    assert str(exc.value) == f"findingmnemo export: {unit.file} changed since it was compiled"

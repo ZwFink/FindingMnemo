@@ -135,14 +135,13 @@ _DROP_WITH_VALUE = {"-MJ", "-mllvm"}
 _XCLANG_PAIRS = {"-mllvm", "-load", "-plugin", "-add-plugin"}
 
 
-def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
-                    compiler: Optional[str] = None, expand_macros: bool = False) -> List[str]:
+def preprocess_argv(unit: CompileUnit, compiler: Optional[str] = None,
+                    expand_macros: bool = False) -> List[str]:
     """The recorded command, changed to preprocess the unit's main file for its
     GPU architecture and write the result to stdout.
 
     Only directives are processed, and comments are kept, unless
-    ``expand_macros``. ``source`` replaces the main file, e.g. with a copy of
-    it; ``compiler`` replaces the recorded compiler.
+    ``expand_macros``. ``compiler`` replaces the recorded compiler.
     """
     args = unit.argv[1:]
     out: List[str] = []
@@ -168,19 +167,15 @@ def preprocess_argv(unit: CompileUnit, source: Optional[str] = None,
             i += 1
             continue
         if not a.startswith("-") and os.path.normpath(os.path.join(unit.directory, a)) == unit.file:
-            # Replaced where it stands, so a -x before it still applies.
             found = True
-            a = source or a
         out.append(a)
         i += 1
     if unit.arch:
         out += ["--no-offload-arch=all", f"--offload-arch={unit.arch}"]
     out += ["-E"] + ([] if expand_macros else ["-C", "-fdirectives-only"])
     out += ["--offload-device-only", "-Wno-unused-command-line-argument", "-o", "-"]
-    if source:
-        out += ["-iquote", os.path.dirname(unit.file)]
     if not found:
-        out.append(source or unit.file)
+        out.append(unit.file)
     return [compiler or unit.argv[0]] + out
 
 
@@ -194,12 +189,10 @@ def _c_string(value: str) -> str:
     return re.sub(r"\\(.)", r"\1", value)
 
 
-def parse_output(text: str, directory: str, rename: Optional[Dict[str, str]] = None
-                 ) -> Dict[str, Dict[int, str]]:
+def parse_output(text: str, directory: str) -> Dict[str, Dict[int, str]]:
     """Split ``clang -E`` output into the non-empty text of each original
     file's lines, by the file's absolute path."""
     files: Dict[str, Dict[int, str]] = {}
-    rename = rename or {}
     cur: Optional[Dict[int, str]] = None
     line = 0
     for raw in text.split("\n"):
@@ -207,7 +200,7 @@ def parse_output(text: str, directory: str, rename: Optional[Dict[str, str]] = N
         if m:
             name = _c_string(m.group(2))
             path = name if name.startswith("<") else os.path.normpath(os.path.join(directory, name))
-            cur = files.setdefault(rename.get(path, path), {})
+            cur = files.setdefault(path, {})
             line = int(m.group(1))
             continue
         if cur is None:
@@ -424,41 +417,38 @@ def md5(path: str) -> Optional[str]:
         return None
 
 
+class SourceChanged(Exception):
+    """A source file no longer matches the checksum in the debug info."""
+
+
 @dataclass
 class UnitViews:
     """Views of the files of one compile unit, or why there are none."""
     views: Dict[str, FileView] = field(default_factory=dict)
     error: Optional[str] = None
-    # Set when the main file was preprocessed from Mneme's copy.
-    used_copy: bool = False
     # Set when the recorded compiler was missing and another one was used.
     compiler: Optional[str] = None
 
 
-def preprocess(unit: CompileUnit, wanted: Set[str], copies: Optional[Dict[str, str]] = None,
-               fallback_compiler: Optional[str] = None, timeout: int = 600) -> UnitViews:
-    """Preprocess ``unit`` again and build views of the files in ``wanted``
-    whose contents still match the debug info's checksums.
+def preprocess(unit: CompileUnit, wanted: Set[str], fallback_compiler: Optional[str] = None,
+               timeout: int = 600) -> UnitViews:
+    """Preprocess ``unit`` again and build views of the files in ``wanted``.
 
-    When the main file changed or moved since the build, Mneme's copy of it
-    (from ``copies``) is preprocessed instead if its checksum matches.
+    Raises SourceChanged if the main file or a file in ``wanted`` no longer
+    matches the debug info's checksum.
     """
-    source = None
-    expected = unit.checksums.get(unit.file)
-    if expected and md5(unit.file) != expected:
-        copy = (copies or {}).get(unit.file)
-        if not copy or md5(copy) != expected:
-            return UnitViews(error=f"{unit.file} changed since it was compiled")
-        source = copy
+    for path in sorted({unit.file} | wanted):
+        expected = unit.checksums.get(path)
+        if expected and md5(path) != expected:
+            raise SourceChanged(f"{path} changed since it was compiled")
     if not os.path.isdir(unit.directory):
         return UnitViews(error=f"compile directory {unit.directory} is gone")
     compiler = None
     if not os.path.isfile(unit.argv[0]) and fallback_compiler:
         compiler = fallback_compiler
-    rename = {os.path.normpath(source): unit.file} if source else {}
     outputs = []
     for expand_macros in (False, True):
-        argv = preprocess_argv(unit, source, compiler, expand_macros)
+        argv = preprocess_argv(unit, compiler, expand_macros)
         try:
             res = subprocess.run(argv, cwd=unit.directory, capture_output=True, text=True,
                                  timeout=timeout)
@@ -467,18 +457,14 @@ def preprocess(unit: CompileUnit, wanted: Set[str], copies: Optional[Dict[str, s
         if res.returncode:
             last = res.stderr.strip().splitlines()[-1:] or [""]
             return UnitViews(error=f"{argv[0]} failed: {last[0]}")
-        outputs.append(parse_output(res.stdout, unit.directory, rename))
+        outputs.append(parse_output(res.stdout, unit.directory))
     printed, expanded = outputs
-    result = UnitViews(used_copy=bool(source), compiler=compiler)
+    result = UnitViews(compiler=compiler)
     for path in wanted:
         if path not in printed:
             continue
-        read_from = source if source and path == unit.file else path
-        expected = unit.checksums.get(path)
-        if expected and md5(read_from) != expected:
-            continue
         try:
-            with open(read_from, newline="") as f:
+            with open(path, newline="") as f:
                 text = f.read()
         except OSError:
             continue
