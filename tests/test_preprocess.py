@@ -713,7 +713,7 @@ def _program_with_views(module, unit):
 
 
 @needs_clang
-def test_export_drops_a_view_that_contradicts_the_ir(tmp_path, capsys):
+def test_export_fails_on_a_view_that_contradicts_the_ir(tmp_path, capsys):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
     unit, = compile_units(module)
@@ -725,9 +725,7 @@ def test_export_drops_a_view_that_contradicts_the_ir(tmp_path, capsys):
     i = unit.argv.index("USE_FAST")
     assert unit.argv[i - 1] == "-D"
     del unit.argv[i - 1:i + 1]
-    prog = _program_with_views(module, unit)
-    assert prog.unit_views[unit.key].views == {}
+    with pytest.raises(SystemExit) as exc:
+        _program_with_views(module, unit)
     fast = TOY.splitlines().index("__device__ double transform(double a) { return a * SCALE; }")
-    assert f"puts code of transform on line {fast + 1}," in capsys.readouterr().err
-    helper = next(fn for fn in prog.functions.values() if fn.display_name == "helper")
-    assert _function_source(prog, helper)[1] == {}
+    assert f"puts code of transform on line {fast + 1}," in str(exc.value)

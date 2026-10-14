@@ -215,10 +215,10 @@ printed or write a file (`-M`, `-MD`, `-P`, `-dM`, ...), plugins (Proteus) and
 `-mllvm` options, and the device-only `-mcpu=` are removed. After
 preprocessing, the export checks the view against the debug info: if any line
 the IR attributes code to is one the view says was not compiled, the view is
-wrong (the file was preprocessed differently from the build) and is not used,
-with a warning. Without a recorded command line, or when preprocessing fails
-or disagrees with the debug info, `source_view` is `as_written` and the source
-is the function's lines as written, still ending at its closing brace.
+wrong (the file was preprocessed differently from the build) and the export
+fails. Without a recorded command line, or when preprocessing fails,
+`source_view` is `as_written` and the source is the function's lines as
+written, still ending at its closing brace.
 
 Example queries:
 

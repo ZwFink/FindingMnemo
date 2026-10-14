@@ -217,18 +217,15 @@ class _Program:
             if views.compiler:
                 print(f"findingmnemo export: {unit.argv[0]} is gone; preprocessed {unit.file} "
                       f"with {views.compiler}", file=sys.stderr)
-            for path, view in list(views.views.items()):
-                # A view that hides code the device compiled is wrong, so it is
-                # not used for any function in the file.
+            for path, view in views.views.items():
                 for fn in self.unit_functions.get(key, {}).values():
                     line = view.contradiction(n for block in fn.blocks for file, n in block.lines
                                               if os.path.normpath(file) == path)
                     if line:
-                        print(f"findingmnemo export: no device source view for {path}: the debug "
-                              f"info puts code of {fn.display_name} on line {line}, which the "
-                              f"preprocessed file does not compile", file=sys.stderr)
-                        del views.views[path]
-                        break
+                        raise SystemExit(
+                            f"findingmnemo export: the device source view of {path} is wrong: "
+                            f"the debug info puts code of {fn.display_name} on line {line}, "
+                            f"which the preprocessed file does not compile")
 
     def view(self, fn: "_Function") -> Optional[Tuple[preprocess.CompileUnit, preprocess.FileView]]:
         """The device view of the function's file, preferring the compile unit
