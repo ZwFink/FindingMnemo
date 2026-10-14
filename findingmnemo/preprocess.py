@@ -135,13 +135,12 @@ _DROP_WITH_VALUE = {"-MJ", "-mllvm"}
 _XCLANG_PAIRS = {"-mllvm", "-load", "-plugin", "-add-plugin"}
 
 
-def preprocess_argv(unit: CompileUnit, compiler: Optional[str] = None,
-                    expand_macros: bool = False) -> List[str]:
+def preprocess_argv(unit: CompileUnit, expand_macros: bool = False) -> List[str]:
     """The recorded command, changed to preprocess the unit's main file for its
     GPU architecture and write the result to stdout.
 
     Only directives are processed, and comments are kept, unless
-    ``expand_macros``. ``compiler`` replaces the recorded compiler.
+    ``expand_macros``.
     """
     args = unit.argv[1:]
     out: List[str] = []
@@ -176,7 +175,7 @@ def preprocess_argv(unit: CompileUnit, compiler: Optional[str] = None,
     out += ["--offload-device-only", "-Wno-unused-command-line-argument", "-o", "-"]
     if not found:
         out.append(unit.file)
-    return [compiler or unit.argv[0]] + out
+    return [unit.argv[0]] + out
 
 
 _MARKER = re.compile(r'^# (\d+) "((?:[^"\\]|\\.)*)"((?: \d+)*)\s*$')
@@ -417,59 +416,48 @@ def md5(path: str) -> Optional[str]:
         return None
 
 
-class SourceChanged(Exception):
-    """A source file no longer matches the checksum in the debug info."""
+class PreprocessError(Exception):
+    """The files of a compile unit cannot be preprocessed the way the build did."""
 
 
-@dataclass
-class UnitViews:
-    """Views of the files of one compile unit, or why there are none."""
-    views: Dict[str, FileView] = field(default_factory=dict)
-    error: Optional[str] = None
-    # Set when the recorded compiler was missing and another one was used.
-    compiler: Optional[str] = None
+def preprocess(unit: CompileUnit, wanted: Set[str], timeout: int = 600) -> Dict[str, FileView]:
+    """Preprocess ``unit`` again and build views of the files in ``wanted``
+    that it includes.
 
-
-def preprocess(unit: CompileUnit, wanted: Set[str], fallback_compiler: Optional[str] = None,
-               timeout: int = 600) -> UnitViews:
-    """Preprocess ``unit`` again and build views of the files in ``wanted``.
-
-    Raises SourceChanged if the main file or a file in ``wanted`` no longer
-    matches the debug info's checksum.
+    Raises PreprocessError if the main file or a file in ``wanted`` changed
+    since the build, if the recorded compile cannot be rerun, or if a file
+    cannot be lined up with the debug info.
     """
     for path in sorted({unit.file} | wanted):
         expected = unit.checksums.get(path)
         if expected and md5(path) != expected:
-            raise SourceChanged(f"{path} changed since it was compiled")
+            raise PreprocessError(f"{path} changed since it was compiled")
     if not os.path.isdir(unit.directory):
-        return UnitViews(error=f"compile directory {unit.directory} is gone")
-    compiler = None
-    if not os.path.isfile(unit.argv[0]) and fallback_compiler:
-        compiler = fallback_compiler
+        raise PreprocessError(f"the compile directory of {unit.file}, {unit.directory}, is gone")
     outputs = []
     for expand_macros in (False, True):
-        argv = preprocess_argv(unit, compiler, expand_macros)
+        argv = preprocess_argv(unit, expand_macros)
         try:
             res = subprocess.run(argv, cwd=unit.directory, capture_output=True, text=True,
                                  timeout=timeout)
         except (OSError, subprocess.TimeoutExpired) as e:
-            return UnitViews(error=f"could not run {argv[0]}: {e}")
+            raise PreprocessError(f"could not run {argv[0]} to preprocess {unit.file}: {e}")
         if res.returncode:
             last = res.stderr.strip().splitlines()[-1:] or [""]
-            return UnitViews(error=f"{argv[0]} failed: {last[0]}")
+            raise PreprocessError(f"{argv[0]} failed to preprocess {unit.file}: {last[0]}")
         outputs.append(parse_output(res.stdout, unit.directory))
     printed, expanded = outputs
-    result = UnitViews(compiler=compiler)
+    views = {}
     for path in wanted:
         if path not in printed:
             continue
         try:
             with open(path, newline="") as f:
                 text = f.read()
-        except OSError:
-            continue
+        except OSError as e:
+            raise PreprocessError(f"cannot read {path}: {e}")
         if _LINE_DIRECTIVE.search(text):
-            # The debug info's line numbers follow #line, not the file.
-            continue
-        result.views[path] = build_view(path, text, printed[path], expanded.get(path, {}))
-    return result
+            raise PreprocessError(f"{path} has #line directives, so the debug info's line "
+                                  f"numbers do not refer to its lines")
+        views[path] = build_view(path, text, printed[path], expanded.get(path, {}))
+    return views

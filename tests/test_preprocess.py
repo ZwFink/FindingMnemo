@@ -7,8 +7,9 @@ import pytest
 
 from findingmnemo import ir
 from findingmnemo.export import _Function, _function_source, _Program
-from findingmnemo.preprocess import (CompileUnit, build_view, compile_units, function_end,
-                                     parse_output, preprocess, preprocess_argv, split_command)
+from findingmnemo.preprocess import (CompileUnit, PreprocessError, build_view, compile_units,
+                                     function_end, parse_output, preprocess, preprocess_argv,
+                                     split_command)
 
 
 def _src(text: str) -> str:
@@ -91,10 +92,9 @@ def test_preprocess_argv_removes_only_what_breaks_preprocessing():
     assert argv == ["/rocm/clang-19", *kept, *TAIL]
 
 
-def test_preprocess_argv_uses_another_compiler():
-    argv = preprocess_argv(_unit(["clang", "-x", "hip", "./k.hip", "-c"]),
-                           compiler="/llvm/bin/clang")
-    assert argv == ["/llvm/bin/clang", "-x", "hip", "./k.hip", "-c", *TAIL]
+def test_preprocess_argv_expands_macros_on_request():
+    argv = preprocess_argv(_unit(["clang", "-x", "hip", "./k.hip", "-c"]))
+    assert argv == ["clang", "-x", "hip", "./k.hip", "-c", *TAIL]
     # The second run expands macros and drops comments.
     expanded = preprocess_argv(_unit(["clang", "k.hip"]), expand_macros=True)
     assert expanded == ["clang", "k.hip", *[a for a in TAIL if a not in ("-C", "-fdirectives-only")]]
@@ -340,30 +340,6 @@ def test_function_end_of_a_declaration_does_not_run_into_the_next_body():
     assert _end("class ReduceSum;\nclass ReduceMin { };") is None
 
 
-# Exporter fallback without a device view
-
-
-def test_export_fallback_finds_the_end_past_conditional_code(tmp_path):
-    copy = tmp_path / "k.hip"
-    copy.write_text(_src("""
-        __device__ double helper(double a) {
-        #if defined(__HIP_DEVICE_COMPILE__)
-          return transform(a);
-        #else
-          return 0.0;
-        #endif
-        }
-    """))
-    prog = _Program.__new__(_Program)
-    prog.unit_views, prog.source_copies = {}, {"/src/k.hip": str(copy)}
-    fn = _Function("device", "helper", "helper", None, "/src/k.hip", 1, end_line=3)
-    fn.ir_fn = ir.Function("helper", "/src/k.hip", 1,
-                           blocks=[ir.BasicBlock("entry", 2, [("/src/k.hip", 3)])])
-    source, info = _function_source(prog, fn)
-    assert fn.end_line == 7 and source == copy.read_text()
-    assert info == {"source_view": "as_written"}
-
-
 # Against the real compiler
 
 
@@ -392,11 +368,9 @@ def _compile(directory, file, *flags, archs=("gfx942",)):
     return [open(os.path.join(directory, n)).read() for n in names]
 
 
-def _views(module, files=None, **kwargs):
+def _views(module, files=None):
     unit, = compile_units(module)
-    result = preprocess(unit, set(files or [unit.file]), **kwargs)
-    assert result.error is None
-    return unit, result
+    return unit, preprocess(unit, set(files or [unit.file]))
 
 
 def _assert_agrees_with_ir(module, view):
@@ -454,9 +428,9 @@ TOY = _src("""
 def test_device_view_of_a_recorded_compile(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST")
-    unit, result = _views(module)
+    unit, views = _views(module)
     assert unit.arch == "gfx942"
-    view = result.views[str(tmp_path / "toy.hip")]
+    view = views[str(tmp_path / "toy.hip")]
     _assert_agrees_with_ir(module, view)
     lines = TOY.splitlines()
 
@@ -527,9 +501,9 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
     lines = MAIN.splitlines()
     for module, arch, kept, dropped in ((modules[0], "gfx90a", "  return 90;", "  return 942;"),
                                         (modules[1], "gfx942", "  return 942;", "  return 90;")):
-        unit, result = _views(module, [str(src / "main.hip"), header])
+        unit, views = _views(module, [str(src / "main.hip"), header])
         assert unit.arch == arch
-        view = result.views[str(src / "main.hip")]
+        view = views[str(src / "main.hip")]
         _assert_agrees_with_ir(module, view)
         assert view.compiled(lines.index(kept) + 1)
         assert not view.compiled(lines.index(dropped) + 1)
@@ -538,7 +512,7 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
             == lines.index("CLOSE") + 1
         # The template in the header, found through an -I with a space in it,
         # gets a view too.
-        hview = result.views[header]
+        hview = views[header]
         assert hview.kept[3:8] == [False, False, False, True, False]
         assert hview.function_end(3) == 9
     # Preprocessing again did not write a dependency file.
@@ -546,19 +520,17 @@ def test_device_view_per_architecture_with_headers_and_spaces(tmp_path):
 
 
 @needs_clang
-def test_missing_compiler_falls_back_or_reports(tmp_path):
+def test_missing_compiler_or_compile_directory_fails(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip")
     unit, = compile_units(module)
-    unit.argv[0] = str(tmp_path / "no-such-clang")
-    assert preprocess(unit, {unit.file}).error.startswith("could not run")
-    result = preprocess(unit, {unit.file}, fallback_compiler=CLANG)
-    assert result.error is None and result.compiler == CLANG
-    # Without -DUSE_FAST this time.
-    lines = TOY.splitlines()
-    view = result.views[unit.file]
-    assert not view.compiled(
-        lines.index("__device__ double transform(double a) { return a * SCALE; }") + 1)
+    compiler = str(tmp_path / "no-such-clang")
+    unit.argv[0] = compiler
+    with pytest.raises(PreprocessError, match=f"^could not run {compiler} to preprocess "):
+        preprocess(unit, {unit.file})
+    unit.directory = str(tmp_path / "gone")
+    with pytest.raises(PreprocessError, match="compile directory .* is gone"):
+        preprocess(unit, {unit.file})
 
 
 def test_function_end_of_a_lambda_with_a_trailing_return_type():
@@ -601,8 +573,8 @@ LAMBDAS = _src("""
 def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
     (tmp_path / "lambdas.hip").write_text(LAMBDAS)
     module, = _compile(tmp_path, "lambdas.hip", "-O0")
-    unit, result = _views(module)
-    view = result.views[unit.file]
+    unit, views = _views(module)
+    view = views[unit.file]
     _assert_agrees_with_ir(module, view)
     lines = LAMBDAS.splitlines()
     ends = {}
@@ -623,7 +595,7 @@ def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
 
 
 @needs_clang
-def test_files_with_line_directives_get_no_view(tmp_path):
+def test_files_with_line_directives_fail(tmp_path):
     (tmp_path / "gen.hip").write_text(_src("""
         #include <hip/hip_runtime.h>
         #line 200 "grammar.y"
@@ -631,7 +603,8 @@ def test_files_with_line_directives_get_no_view(tmp_path):
     """))
     module, = _compile(tmp_path, "gen.hip")
     unit, = compile_units(module)
-    assert preprocess(unit, {unit.file}).views == {}
+    with pytest.raises(PreprocessError, match="has #line directives"):
+        preprocess(unit, {unit.file})
 
 
 @pytest.mark.skipif(CLANG is None or shutil.which("mneme") is None, reason="needs clang and mneme")
@@ -642,23 +615,21 @@ def test_device_view_with_mnemes_compile_flags(tmp_path):
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", *flags)
     unit, = compile_units(module)
     assert any(a.startswith("-fpass-plugin=") for a in unit.argv)
-    result = preprocess(unit, {unit.file})
-    assert result.error is None
-    _assert_agrees_with_ir(module, result.views[unit.file])
+    _assert_agrees_with_ir(module, preprocess(unit, {unit.file})[unit.file])
 
 
 @needs_clang
 def test_export_writes_the_device_view(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
-    unit, result = _views(module)
+    unit, views = _views(module)
     prog = _Program.__new__(_Program)
-    prog.unit_views, prog.source_copies = {unit.key: result}, {}
+    prog.unit_views = {unit.key: views}
     helper = next(f for f in ir.parse_module(module).values() if f.display_name == "helper")
     fn = _Function("device", helper.name, "helper(double)", "helper", unit.file, helper.line)
     fn.ir_fn, fn.units = helper, [unit]
     source, info = _function_source(prog, fn)
-    assert info == {"source_view": "device", "source_arch": "gfx942"}
+    assert info == {"source_arch": "gfx942"}
     assert fn.end_line == helper.line + 7
     assert source.split("\n") == ["__device__ double helper(double a) {", "", "  NOTHING(a)",
                                   "  return transform(a);", "", "", "", "}", ""]
@@ -676,9 +647,7 @@ def test_preprocessing_again_writes_nothing_into_the_build(tmp_path):
     # instead of toy.hip, so it is only added to the recorded command here.
     unit.argv.insert(1, "-save-temps")
     before = {p: p.stat().st_mtime_ns for p in tmp_path.rglob("*")}
-    result = preprocess(unit, {unit.file})
-    assert result.error is None
-    _assert_agrees_with_ir(module, result.views[unit.file])
+    _assert_agrees_with_ir(module, preprocess(unit, {unit.file})[unit.file])
     assert {p: p.stat().st_mtime_ns for p in tmp_path.rglob("*")} == before
 
 
@@ -689,15 +658,16 @@ def test_a_command_with_two_inputs_fails_plainly(tmp_path):
     module, = _compile(tmp_path, "toy.hip")
     unit, = compile_units(module)
     unit.argv.append("other.hip")
-    assert "cannot specify -o when generating multiple output files" in \
-        preprocess(unit, {unit.file}).error
+    with pytest.raises(PreprocessError, match="cannot specify -o when generating multiple "
+                                              "output files"):
+        preprocess(unit, {unit.file})
 
 
 def _program_with_views(module, unit):
     """A program with the module's functions, after building its views."""
     functions = ir.parse_module(module)
     prog = _Program.__new__(_Program)
-    prog.unit_views, prog.source_copies, prog.llvm_bin = {}, {}, os.path.dirname(CLANG)
+    prog.unit_views = {}
     prog.unit_functions = {unit.key: functions}
     prog.functions = {}
     for f in functions.values():
@@ -713,7 +683,7 @@ def test_export_fails_on_a_view_that_contradicts_the_ir(tmp_path, capsys):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
     unit, = compile_units(module)
-    assert unit.file in _program_with_views(module, unit).unit_views[unit.key].views
+    assert unit.file in _program_with_views(module, unit).unit_views[unit.key]
     assert capsys.readouterr().err == ""
     # As if the build had defined USE_FAST some way the command does not
     # record, e.g. through an environment variable. The driver records
@@ -736,3 +706,27 @@ def test_export_fails_when_a_source_changed_since_the_build(tmp_path):
     with pytest.raises(SystemExit) as exc:
         _program_with_views(module, unit)
     assert str(exc.value) == f"findingmnemo export: {unit.file} changed since it was compiled"
+
+
+@needs_clang
+def test_export_fails_for_a_function_without_a_device_view(tmp_path):
+    (tmp_path / "toy.hip").write_text(TOY)
+    module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
+    unit, = compile_units(module)
+    prog = _program_with_views(module, unit)
+    helper = next(fn for fn in prog.functions.values() if fn.display_name == "helper")
+
+    def fails(message, **changes):
+        fn = _Function(**{**helper.__dict__, **changes})
+        with pytest.raises(SystemExit) as exc:
+            _function_source(prog, fn)
+        assert str(exc.value) == f"findingmnemo export: {message}"
+
+    fails("the debug info has no source location for helper", line=None)
+    fails("the debug info of helper has no compile command; build with -grecord-command-line",
+          units=[])
+    fails(f"{tmp_path}/other.hip, the file of helper, is not part of its recorded device compile",
+          file=str(tmp_path / "other.hip"))
+    last = len(TOY.splitlines())
+    fails(f"cannot find the closing brace of helper, which starts on line {last} of {unit.file}",
+          line=last)

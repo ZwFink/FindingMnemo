@@ -5,7 +5,6 @@
   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 193,
   "end_line": 242,
-  "source_view": "device",
   "source_arch": "gfx942",
   "calls": [
     {
