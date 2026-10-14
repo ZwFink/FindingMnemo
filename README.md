@@ -171,10 +171,12 @@ is easy to find from the kernel.
 
 A file's `source.<ext>` is the file as written. A kernel's or device
 function's `source.<ext>` is the function as the device compiled it: the
-export reads the compile command from each recorded module's debug info,
-reruns it with `-E -fdirectives-only` for the module's GPU architecture, which
-handles directives but leaves macros alone, and uses the preprocessor's line
-markers to line its output up with the original file. In the function's source,
+export reads the command of the compile the function came from in the
+recorded module's debug info (a module linked from several files, as in a HIP
+`-fgpu-rdc` build, has one for each file), reruns it with
+`-E -fdirectives-only` for the module's GPU architecture, which handles
+directives but leaves macros alone, and uses the preprocessor's line markers to
+line its output up with the original file. In the function's source,
 
 - branches of `#if`, `#ifdef` and friends that the device compile did not take
   (because of `-D` flags, `__HIP_DEVICE_COMPILE__`, `__gfx942__`, ...) and the

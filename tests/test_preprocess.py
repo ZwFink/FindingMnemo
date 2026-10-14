@@ -627,7 +627,7 @@ def test_export_writes_the_device_view(tmp_path):
     prog.unit_views = {unit.key: views}
     helper = next(f for f in ir.parse_module(module).values() if f.display_name == "helper")
     fn = _Function("device", helper.name, "helper(double)", "helper", unit.file, helper.line)
-    fn.ir_fn, fn.units = helper, [unit]
+    fn.ir_fn, fn.unit = helper, unit
     source, info = _function_source(prog, fn)
     assert info == {"source_arch": "gfx942"}
     assert fn.end_line == helper.line + 7
@@ -663,16 +663,17 @@ def test_a_command_with_two_inputs_fails_plainly(tmp_path):
         preprocess(unit, {unit.file})
 
 
-def _program_with_views(module, unit):
-    """A program with the module's functions, after building its views."""
-    functions = ir.parse_module(module)
+def _program_with_views(module, units):
+    """A program with the module's functions, each in its compile unit, after
+    building its views."""
+    by_id = {unit.id: unit for unit in units}
     prog = _Program.__new__(_Program)
     prog.unit_views = {}
-    prog.unit_functions = {unit.key: functions}
     prog.functions = {}
-    for f in functions.values():
-        fn = _Function("device", f.name, f.display_name, f.display_name, unit.file, f.line)
-        fn.ir_fn, fn.units = f, [unit]
+    for f in ir.parse_module(module).values():
+        fn = _Function("device", f.name, f.display_name, f.display_name,
+                       f.file and os.path.normpath(f.file), f.line)
+        fn.ir_fn, fn.unit = f, by_id.get(f.unit_id)
         prog.functions[("device", f.name)] = fn
     prog.build_views()
     return prog
@@ -683,7 +684,7 @@ def test_export_fails_on_a_view_that_contradicts_the_ir(tmp_path, capsys):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
     unit, = compile_units(module)
-    assert unit.file in _program_with_views(module, unit).unit_views[unit.key]
+    assert unit.file in _program_with_views(module, [unit]).unit_views[unit.key]
     assert capsys.readouterr().err == ""
     # As if the build had defined USE_FAST some way the command does not
     # record, e.g. through an environment variable. The driver records
@@ -692,9 +693,42 @@ def test_export_fails_on_a_view_that_contradicts_the_ir(tmp_path, capsys):
     assert unit.argv[i - 1] == "-D"
     del unit.argv[i - 1:i + 1]
     with pytest.raises(SystemExit) as exc:
-        _program_with_views(module, unit)
+        _program_with_views(module, [unit])
     fast = TOY.splitlines().index("__device__ double transform(double a) { return a * SCALE; }")
     assert f"puts code of transform on line {fast + 1}," in str(exc.value)
+
+
+@needs_clang
+def test_each_function_gets_the_view_of_the_compile_it_came_from(tmp_path):
+    # A HIP -fgpu-rdc build links the device code of several files into a
+    # kernel's module, which then has a compile unit for each file. Here the
+    # two files compile different code of the header they share.
+    (tmp_path / "common.h").write_text(_src("""
+        #ifdef MODE_A
+        __device__ int fa(int x) { return x + 3; }
+        #else
+        __device__ int fb(int x) { return x - 3; }
+        #endif
+    """))
+    for name, call in (("a", "fa"), ("b", "fb")):
+        (tmp_path / f"{name}.hip").write_text(
+            f'#include <hip/hip_runtime.h>\n#include "common.h"\n'
+            f"__global__ void k{name}(int *p) {{ p[0] = {call}(p[0]); }}\n")
+    (tmp_path / "a.ll").write_text(_compile(tmp_path, "a.hip", "-fgpu-rdc", "-O0", "-DMODE_A")[0])
+    (tmp_path / "b.ll").write_text(_compile(tmp_path, "b.hip", "-fgpu-rdc", "-O0")[0])
+    module = subprocess.run([os.path.join(os.path.dirname(CLANG), "llvm-link"), "-S", "a.ll",
+                             "b.ll"], cwd=tmp_path, capture_output=True, text=True,
+                            check=True).stdout
+    units = compile_units(module)
+    assert sorted(os.path.basename(unit.file) for unit in units) == ["a.hip", "b.hip"]
+    prog = _program_with_views(module, units)
+    functions = {fn.display_name: fn for fn in prog.functions.values()}
+    assert functions["fa"].unit.file == str(tmp_path / "a.hip")
+    assert functions["fb"].unit.file == str(tmp_path / "b.hip")
+    assert _function_source(prog, functions["fa"])[0] == \
+        "__device__ int fa(int x) { return x + 3; }\n"
+    assert _function_source(prog, functions["fb"])[0] == \
+        "__device__ int fb(int x) { return x - 3; }\n"
 
 
 @needs_clang
@@ -704,7 +738,7 @@ def test_export_fails_when_a_source_changed_since_the_build(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY.replace("SCALE; }", "SCALE + 1; }"))
     unit, = compile_units(module)
     with pytest.raises(SystemExit) as exc:
-        _program_with_views(module, unit)
+        _program_with_views(module, [unit])
     assert str(exc.value) == f"findingmnemo export: {unit.file} changed since it was compiled"
 
 
@@ -713,7 +747,7 @@ def test_export_fails_for_a_function_without_a_device_view(tmp_path):
     (tmp_path / "toy.hip").write_text(TOY)
     module, = _compile(tmp_path, "toy.hip", "-DUSE_FAST", "-O0")
     unit, = compile_units(module)
-    prog = _program_with_views(module, unit)
+    prog = _program_with_views(module, [unit])
     helper = next(fn for fn in prog.functions.values() if fn.display_name == "helper")
 
     def fails(message, **changes):
@@ -724,7 +758,7 @@ def test_export_fails_for_a_function_without_a_device_view(tmp_path):
 
     fails("the debug info has no source location for helper", line=None)
     fails("the debug info of helper has no compile command; build with -grecord-command-line",
-          units=[])
+          unit=None)
     fails(f"{tmp_path}/other.hip, the file of helper, is not part of its recorded device compile",
           file=str(tmp_path / "other.hip"))
     last = len(TOY.splitlines())

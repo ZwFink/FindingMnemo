@@ -53,8 +53,9 @@ class _Function:
     end_line: Optional[int] = None
     ir_fn: Optional[ir.Function] = None
     kernel: Optional[_Kernel] = None
-    # Compile units of the module the function was read from.
-    units: List[preprocess.CompileUnit] = field(default_factory=list)
+    # The compile the debug info says the function came from, if it recorded
+    # its command.
+    unit: Optional[preprocess.CompileUnit] = None
     # Directory relative to the program directory, assigned before writing.
     path: str = ""
 
@@ -111,8 +112,6 @@ class _Program:
         self.source_copies: Dict[str, str] = {}
         # Device views of source files, by compile unit.
         self.unit_views: Dict[tuple, Dict[str, preprocess.FileView]] = {}
-        # The functions of the modules each compile unit was recorded in, by name.
-        self.unit_functions: Dict[tuple, Dict[str, ir.Function]] = {}
         self.llvm_bin = llvm_bin
         self.dir = ""
 
@@ -158,14 +157,16 @@ class _Program:
 
     def _add_recorded_kernel(self, record: dict, record_path: str, record_dir: str,
                              code: isa.KernelCode, llvm_bin: str):
-        ir_texts, parsed, units = [], {}, []
+        ir_texts, parsed, units = [], {}, {}
         for module in record["Modules"]:
             text, functions = ir.analyze_bitcode(os.path.join(record_dir, module), llvm_bin)
             ir_texts.append(text)
             parsed.update(functions)
-            for unit in preprocess.compile_units(text):
-                units.append(unit)
-                self.unit_functions.setdefault(unit.key, {}).update(functions)
+            # A module linked from several files, as in a HIP -fgpu-rdc build,
+            # has a compile unit for each.
+            module_units = {unit.id: unit for unit in preprocess.compile_units(text)}
+            for fn in functions.values():
+                units[fn.name] = module_units.get(fn.unit_id)
 
         name = record["KernelName"]
         self.demangled.update(_demangle([f for f in parsed if f not in self.demangled], llvm_bin))
@@ -176,7 +177,7 @@ class _Program:
             # Device functions shared by several kernels appear in each module.
             if node.ir_fn is None:
                 node.ir_fn = fn
-                node.units = units
+                node.unit = units[fn.name]
         for fn in parsed.values():
             caller = self.functions[("kernel" if fn.name == name else "device", fn.name)]
             for callee_name, site in fn.calls:
@@ -198,37 +199,38 @@ class _Program:
         """Preprocess each compile unit once for the files its functions are in."""
         wanted: Dict[tuple, Tuple[preprocess.CompileUnit, set]] = {}
         for fn in self.functions.values():
-            for unit in fn.units:
-                if fn.file:
-                    wanted.setdefault(unit.key, (unit, set()))[1].add(fn.file)
+            if fn.unit and fn.file:
+                wanted.setdefault(fn.unit.key, (fn.unit, set()))[1].add(fn.file)
         for key, (unit, files) in wanted.items():
             try:
-                views = preprocess.preprocess(unit, files)
+                self.unit_views[key] = preprocess.preprocess(unit, files)
             except preprocess.PreprocessError as e:
                 raise SystemExit(f"findingmnemo export: {e}")
-            self.unit_views[key] = views
-            for path, view in views.items():
-                for fn in self.unit_functions.get(key, {}).values():
-                    line = view.contradiction(n for block in fn.blocks for file, n in block.lines
-                                              if os.path.normpath(file) == path)
-                    if line:
-                        raise SystemExit(
-                            f"findingmnemo export: the device source view of {path} is wrong: "
-                            f"the debug info puts code of {fn.display_name} on line {line}, "
-                            f"which the preprocessed file does not compile")
+        # Code inlined from other files is checked as well, against the views
+        # of its function's compile, which inlined it.
+        for fn in self.functions.values():
+            if not fn.unit:
+                continue
+            for path, view in self.unit_views.get(fn.unit.key, {}).items():
+                line = view.contradiction(n for block in fn.ir_fn.blocks
+                                          for file, n in block.lines
+                                          if os.path.normpath(file) == path)
+                if line:
+                    raise SystemExit(
+                        f"findingmnemo export: the device source view of {path} is wrong: "
+                        f"the debug info puts code of {fn.display_name} on line {line}, "
+                        f"which the preprocessed file does not compile")
 
     def view(self, fn: "_Function") -> Tuple[preprocess.CompileUnit, preprocess.FileView]:
-        """The device view of the function's file, preferring the compile unit
-        whose main file it is."""
-        if not fn.units:
+        """The device view of the function's file in the compile it came from."""
+        if not fn.unit:
             raise SystemExit(f"findingmnemo export: the debug info of {fn.display_name} has no "
                              f"compile command; build with -grecord-command-line")
-        for unit in sorted(fn.units, key=lambda u: u.file != fn.file):
-            views = self.unit_views[unit.key]
-            if fn.file in views:
-                return unit, views[fn.file]
-        raise SystemExit(f"findingmnemo export: {fn.file}, the file of {fn.display_name}, is not "
-                         f"part of its recorded device compile")
+        views = self.unit_views[fn.unit.key]
+        if fn.file not in views:
+            raise SystemExit(f"findingmnemo export: {fn.file}, the file of {fn.display_name}, is "
+                             f"not part of its recorded device compile")
+        return fn.unit, views[fn.file]
 
     def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,

@@ -38,6 +38,8 @@ class CompileUnit:
     arch: Optional[str]
     # MD5 of every file the debug info names, by absolute path.
     checksums: Dict[str, str] = field(default_factory=dict)
+    # Metadata id of the DICompileUnit in its module.
+    id: Optional[int] = None
 
     @property
     def key(self) -> tuple:
@@ -93,7 +95,7 @@ def compile_units(ir_text: str) -> List[CompileUnit]:
                 checksums[path] = _llvm_string(fields["checksum"])
     cpu = _TARGET_CPU.search(ir_text)
     units = []
-    for kind, fields in nodes.values():
+    for ref, (kind, fields) in nodes.items():
         if kind != "DICompileUnit" or "flags" not in fields:
             continue
         argv = split_command(_llvm_string(fields["flags"]))
@@ -105,7 +107,7 @@ def compile_units(ir_text: str) -> List[CompileUnit]:
         path = _difile_path(file_node[1])
         arch = next((a.split("=", 1)[1] for a in reversed(argv) if a.startswith("-mcpu=")),
                     cpu.group(1) if cpu else None)
-        units.append(CompileUnit(argv, directory, path, arch, checksums))
+        units.append(CompileUnit(argv, directory, path, arch, checksums, ref))
     return units
 
 

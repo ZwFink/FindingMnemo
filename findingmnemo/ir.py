@@ -47,6 +47,8 @@ class Function:
     file: Optional[str] = None
     line: Optional[int] = None
     display_name: Optional[str] = None
+    # Metadata id of the DICompileUnit the function was compiled in.
+    unit_id: Optional[int] = None
     blocks: List[BasicBlock] = field(default_factory=list)
     loops: List[Loop] = field(default_factory=list)
     # The function's definition, from ``define`` to the closing brace.
@@ -110,14 +112,16 @@ class _DebugInfo:
             return None
         return path, line
 
-    def subprogram(self, ref: Optional[int]) -> Tuple[Optional[str], Optional[int], Optional[str]]:
+    def subprogram(self, ref: Optional[int]
+                   ) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
         node = self.nodes.get(ref)
         if not node or node[0] != "DISubprogram":
-            return None, None, None
+            return None, None, None, None
         fields = node[1]
         line = fields.get("line")
         name = fields.get("name", "").strip('"') or None
-        return self.file(self._ref(fields.get("file"))), int(line) if line else None, name
+        return (self.file(self._ref(fields.get("file"))), int(line) if line else None, name,
+                self._ref(fields.get("unit")))
 
 
 def parse_module(ir_text: str) -> Dict[str, Function]:
@@ -138,7 +142,8 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
             body = [line]
             dbg = re.search(r"!dbg !(\d+)", line)
             if dbg:
-                current.file, current.line, current.display_name = debug.subprogram(int(dbg.group(1)))
+                (current.file, current.line, current.display_name,
+                 current.unit_id) = debug.subprogram(int(dbg.group(1)))
             # LLVM omits the label of an unnamed entry block.
             block = BasicBlock("entry")
             continue
