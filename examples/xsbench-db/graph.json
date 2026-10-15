@@ -4,7 +4,7 @@
    "id": "xsbench-small-unionized",
    "kind": "program",
    "label": "XSBench",
-   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/XSBench",
+   "executable": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/XSBench",
    "arguments": [
     "-m",
     "event",
@@ -14,26 +14,26 @@
     "unionized"
    ],
    "gpu_arch": "gfx942",
-   "hostname": "tuolumne2152"
+   "hostname": "tuolumne2149"
   },
   {
    "id": "xsbench-small-unionized/files/Main.cpp",
    "kind": "source_file",
    "label": "Main.cpp",
-   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp"
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Main.cpp"
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp",
    "kind": "source_file",
    "label": "Simulation.cpp",
-   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp"
+   "path": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp"
   },
   {
    "id": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
    "kind": "kernel_function",
    "label": "xs_lookup_kernel_baseline(Inputs, SimulationData)",
    "name": "_Z25xs_lookup_kernel_baseline6Inputs14SimulationData",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 50,
    "end_line": 105,
    "isa_instructions": 814
@@ -138,7 +138,7 @@
    "kind": "device_function",
    "label": "fast_forward_LCG(unsigned long, unsigned long)",
    "name": "_Z16fast_forward_LCGmm",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 342,
    "end_line": 368
   },
@@ -195,7 +195,7 @@
    "kind": "device_function",
    "label": "LCG_random_double(unsigned long*)",
    "name": "_Z17LCG_random_doublePm",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 332,
    "end_line": 340
   },
@@ -212,7 +212,7 @@
    "kind": "device_function",
    "label": "pick_mat(unsigned long*)",
    "name": "_Z8pick_matPm",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 293,
    "end_line": 330
   },
@@ -345,7 +345,7 @@
    "kind": "device_function",
    "label": "calculate_macro_xs(double, int, long, long, int*, double*, double*, int*, NuclideGridPoint*, int*, double*, int, int, int)",
    "name": "_Z18calculate_macro_xsdillPiPdS0_S_P16NuclideGridPointS_S0_iii",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 193,
    "end_line": 242
   },
@@ -484,7 +484,7 @@
    "kind": "device_function",
    "label": "grid_search(long, double, double*)",
    "name": "_Z11grid_searchldPd",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 247,
    "end_line": 267
   },
@@ -555,7 +555,7 @@
    "kind": "device_function",
    "label": "calculate_micro_xs(double, int, long, long, double*, int*, NuclideGridPoint*, long, double*, int, int)",
    "name": "_Z18calculate_micro_xsdillPdPiP16NuclideGridPointlS_ii",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 108,
    "end_line": 190
   },
@@ -732,7 +732,7 @@
    "kind": "device_function",
    "label": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
    "name": "_Z19grid_search_nuclideldP16NuclideGridPointll",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 270,
    "end_line": 290
   },
@@ -803,7 +803,7 @@
    "kind": "host_function",
    "label": "main",
    "name": "main",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Main.cpp",
    "line": 3
   },
   {
@@ -811,7 +811,7 @@
    "kind": "host_function",
    "label": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
    "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
-   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "line": 16
   }
  ],
@@ -1321,7 +1321,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/fast_forward_LCG",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 62,
    "launches": null
   },
@@ -1330,7 +1330,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 65,
    "launches": null
   },
@@ -1339,7 +1339,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/pick_mat",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 66,
    "launches": null
   },
@@ -1348,7 +1348,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_macro_xs",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 71,
    "launches": null
   },
@@ -1357,7 +1357,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/LCG_random_double",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 317,
    "launches": null
   },
@@ -1366,7 +1366,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 214,
    "launches": null
   },
@@ -1375,7 +1375,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/calculate_micro_xs",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 236,
    "launches": null
   },
@@ -1384,7 +1384,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 122,
    "launches": null
   },
@@ -1393,7 +1393,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/grid_search_nuclide",
    "kind": "calls",
    "origin": "ir",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 163,
    "launches": null
   },
@@ -1402,7 +1402,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/run_event_based_simulation_baseline",
    "kind": "calls",
    "origin": "stack",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Main.cpp",
    "call_line": 65,
    "launches": 1
   },
@@ -1411,7 +1411,7 @@
    "target": "xsbench-small-unionized/files/Simulation.cpp/xs_lookup_kernel_baseline",
    "kind": "launches",
    "origin": "launch",
-   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+   "call_file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
    "call_line": 26,
    "launches": 1
   }

@@ -11,7 +11,7 @@ PROTEUS_PREFIX=${PROTEUS_PREFIX:-/p/vast1/fink12/proteus/install-tuolumne-rocm-6
 LLVM_BIN="$(mneme config llvmdir)/bin"
 
 cmake -S "$MNEME_SRC/examples/hip_vec_add" -B "$WORK/vecadd-build" \
-  -DCMAKE_HIP_ARCHITECTURES=gfx942 \
+  -DCMAKE_HIP_ARCHITECTURES=gfx942 -DCMAKE_HIP_FLAGS=-grecord-command-line \
   -DCMAKE_PREFIX_PATH="$(mneme config cmakedir);$PROTEUS_PREFIX" \
   -DCMAKE_C_COMPILER="$LLVM_BIN/amdclang" -DCMAKE_CXX_COMPILER="$LLVM_BIN/amdclang++" \
   -DCMAKE_HIP_COMPILER="$LLVM_BIN/clang++"

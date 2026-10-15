@@ -1,7 +1,6 @@
 # Environment for the examples on Tuolumne. Source it after setting
-# MNEME_PREFIX to a Mneme install that has bin/mneme and python/mneme, built
-# with MNEME_ENABLE_PYTHON=On from a branch that records kernel source
-# (record-source-file or later).
+# MNEME_PREFIX to an up-to-date Mneme install (develop) that has bin/mneme and
+# python/mneme, built with MNEME_ENABLE_PYTHON=On.
 #
 #   export MNEME_PREFIX=/path/to/mneme/install
 #   source examples/env-tuolumne.sh

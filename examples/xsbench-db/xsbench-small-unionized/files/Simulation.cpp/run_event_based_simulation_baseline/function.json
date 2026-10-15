@@ -1,7 +1,7 @@
 {
   "kind": "host",
   "name": "run_event_based_simulation_baseline(Inputs, SimulationData, int)",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Simulation.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
   "line": 16,
   "launches": [
     {
@@ -15,7 +15,7 @@
     {
       "function": "main",
       "at": "files/Main.cpp/main",
-      "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+      "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Main.cpp",
       "line": 65,
       "launch_count": 1
     }

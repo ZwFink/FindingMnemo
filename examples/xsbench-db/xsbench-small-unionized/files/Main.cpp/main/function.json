@@ -1,7 +1,7 @@
 {
   "kind": "host",
   "name": "main",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/script-check3/XSBench/hip/Main.cpp",
+  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Main.cpp",
   "line": 3,
   "calls": [
     {

@@ -32,22 +32,25 @@ to a kernel launch), device edges are *static* (from the recorded IR).
    line range that define it, and a copy of that source file.
 3. **`findingmnemo export`** symbolizes the stacks with `llvm-symbolizer`,
    parses the recorded IR (functions, calls, loops via `opt print<loops>`,
-   basic blocks with source lines), reads each kernel's source through
-   Mneme's `RecordedExecution.kernel_source()`, cuts each device function's
-   source from Mneme's copy of its file, disassembles each kernel from the
-   application's embedded code object, and writes a database directory that
-   mirrors the hierarchy, plus a nodes/edges JSON graph.
+   basic blocks with source lines), reruns each recorded compile unit's
+   preprocessor to cut each kernel's and device function's source as the
+   device compiled it (see [Device source](#device-source)), disassembles each
+   kernel from the application's embedded code object, and writes a database
+   directory that mirrors the hierarchy, plus a nodes/edges JSON graph.
 
 ## Requirements
 
 - AMD GPU with ROCm (tested on Tuolumne, MI300A/gfx942, ROCm 6.4.0).
-- A Mneme install with Python support, from a branch that records kernel source
-  (`record-source-file` or later). See `examples/env-tuolumne.sh`.
+- An up-to-date Mneme install (`develop`) with Python support
+  (`MNEME_ENABLE_PYTHON=On`). See `examples/env-tuolumne.sh`.
 - The application built for Mneme (`add_mneme()` in CMake, or the flags from
   `mneme config cflags` / `ldflags` for Makefiles), with debug info. Prefer
   `-g`: it gives host functions their definition line and host lambdas a name,
   and leaves the device ISA and the recorded IR unchanged (checked on
   XSBench). `-gline-tables-only`, which `add_mneme()` uses, also works.
+- `-grecord-command-line`, which stores the compile command in the debug
+  info so the export can resolve `#if`s the way the device compile did. It
+  adds a few hundred bytes per module. Without it, the export fails.
 - Python 3.8+ with Mneme's Python package (`mneme.recorded_execution`) on
   `PYTHONPATH`; everything else is the standard library.
 
@@ -122,7 +125,9 @@ Every function directory has a `function.json`:
 | --- | --- |
 | `kind` | `host`, `kernel` or `device` |
 | `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
-| `file`, `line`, `end_line` | definition; `end_line` for kernels and device functions recorded by Mneme |
+| `file`, `line`, `end_line` | definition; `end_line` (the closing brace) for kernels and device functions recorded by Mneme |
+| `source_arch` | the GPU architecture whose compile `source.<ext>` shows |
+| `compiler_generated` | `true` for device code the compiler wrote, such as a copy constructor the class does not declare; it has no `source.<ext>` or `end_line`, and `line` is where the debug info puts it, a line naming the class |
 | `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
@@ -164,6 +169,59 @@ database is still written `lambda@<line>` wherever it appears. The full
 demangled name is always in `function.json`. A kernel's `forall[lambda@28]` and
 the device function `lambda@28` that it calls are the same lambda, so its body
 is easy to find from the kernel.
+
+### Device source
+
+A file's `source.<ext>` is the file as written. A kernel's or device
+function's `source.<ext>` is the function as the device compiled it: the
+export reads the command of the compile the function came from in the
+recorded module's debug info (a module linked from several files, as in a HIP
+`-fgpu-rdc` build, has one for each file), reruns it with
+`-E -fdirectives-only` for the module's GPU architecture, which handles
+directives but leaves macros alone, and uses the preprocessor's line markers to
+line its output up with the original file. In the function's source,
+
+- branches of `#if`, `#ifdef` and friends that the device compile did not take
+  (because of `-D` flags, `__HIP_DEVICE_COMPILE__`, `__gfx942__`, ...) and the
+  directives themselves are blank lines,
+- everything else, `#pragma` lines included, is as written, macros too,
+
+so line numbers from the debug info (`line`, `end_line`, block `lines`) still
+apply. The text comes from the file, since clang prints code with its
+whitespace changed. For example, as written and as the device compiled it:
+
+```
+__device__ double helper(double a) {          __device__ double helper(double a) {
+#if defined(__HIP_DEVICE_COMPILE__)
+  return transform(a);                  -->     return transform(a);
+#else
+  return 0.0;
+#endif
+}                                             }
+```
+
+The function ends at the brace that closes it, counting only the code the
+device compiled, with macros expanded by a second, ordinary `-E`. Before
+preprocessing, the export checks each file against the MD5 in the debug info
+and fails if one changed since the build. It needs the recorded compiler,
+headers and compile directory at their recorded paths.
+
+The recorded command is rerun as it was, with `-E`, `-o -` and the module's
+architecture appended; the driver lets these win over the build's own `-c`,
+`-o` and `--offload-arch`. Only options that would still change what is
+printed or write a file (`-M`, `-MD`, `-P`, `-dM`, ...), frontend plugins
+(Proteus's `-fplugin=`) and `-mllvm` options, and the device-only `-mcpu=` are
+removed. After preprocessing, the export checks the view against the debug
+info: if any line the IR attributes code to is one the view says was not
+compiled, the view is wrong (the file was preprocessed differently from the
+build) and the export fails. The export also fails, naming the function or
+file and the reason, whenever a kernel's or device function's source cannot be
+cut this way: the debug info has no command line or no source location for
+it, preprocessing fails, its file is not part of the recorded compile, or
+where it begins or its closing brace is not found. It never falls back to the source as written.
+Device code the compiler wrote, such as a copy constructor the class does not
+declare, has no text to cut; it has `"compiler_generated": true` instead of a
+source.
 
 Example queries:
 
@@ -218,13 +276,23 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   application file.
 - **Only files that define recorded kernels are copied.** Mneme copies the
   translation unit of each kernel it records; other files, such as those with
-  only host code, are referenced by path in `file.json`. Device functions
-  defined in other files, such as headers, get `end_line` but no `source`
-  file.
-- **Device function spans come from the IR.** Like Mneme does for kernels,
-  a device function ends at its last line that generated code, extended over
-  a closing brace on the next line (a function with a single `return` ends at
-  that statement in the debug info).
+  only host code, are referenced by path in `file.json`.
+- **Function ends come from brace matching.** The debug info records where a
+  function starts, not where it ends, and only by line. The export finds the
+  function on its start line, at its name or, for a lambda, at the `[` of the
+  only lambda that starts there, and scans from there to the closing brace
+  (skipping comments, literals, default-argument initializers and member
+  initializers). If either step fails, or the end would come before the
+  function's last line of code, the export fails.
+- **Device views need the build environment.** Preprocessing again needs the
+  compiler, headers and compile directory at their recorded paths, and
+  environment variables that affected the build are not recorded. The check
+  against the debug info catches a wrong view only where a branch with code
+  in it differs; a macro with another value but the same branches taken goes
+  unnoticed. Files with `#line` directives, whose debug-info line numbers do
+  not refer to the file itself, commands that compile several sources at
+  once, and builds with `-save-temps` (whose debug info checksums the
+  temporary preprocessed file) make the export fail.
 - **Recorded IR is pre-codegen.** Device functions are still separate in the
   IR but usually inlined in the ISA; the ISA's line annotations map
   instructions back to source.
