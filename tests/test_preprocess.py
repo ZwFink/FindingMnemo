@@ -249,6 +249,13 @@ def test_view_takes_text_from_the_file_with_continued_lines_and_crlf():
                                   9: "}"}))
     assert view.kept == [False, False, True, False, False, False, True, True, True]
     assert view.text(3, 9) == "int g() {\r\n\r\n\r\n\r\n\treturn \\\r\n  2;\r\n}\r\n"
+    # Clang ends lines only at \n, \r\n or \r, so a form feed does not, and a
+    # backslash continues a line even with spaces after it.
+    source = "\f\nint h() {\n  int b = 1 + \\ \t\n    2;\n  return b;\n}\n"
+    view = _view(source, _marked({2: "int h() {", 3: "  int b = 1 + 2;", 5: "  return b;",
+                                  6: "}"}))
+    assert view.kept == [False, True, True, True, True, True]
+    assert view.text(2, 6) == source[2:]
 
 
 # Function ends

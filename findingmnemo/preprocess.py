@@ -185,6 +185,9 @@ _MARKER = re.compile(r'^# (\d+) "((?:[^"\\]|\\.)*)"((?: \d+)*)\s*$')
 _LINE_DIRECTIVE = re.compile(r"^[ \t]*#[ \t]*(line\b|\d)", re.M)
 _DIRECTIVE = re.compile(r"^\s*#")
 _PRAGMA = re.compile(r"^\s*#\s*pragma\b")
+# Clang ends lines only at \n, \r\n or \r, unlike str.splitlines, which also
+# ends them at a form feed and other characters.
+_SOURCE_LINE = re.compile(r"[^\r\n]*(?:\r\n?|\n)|[^\r\n]+\Z")
 
 
 def _c_string(value: str) -> str:
@@ -234,7 +237,7 @@ class FileView:
         for n in range(start, min(end, len(self.lines)) + 1):
             text = self.lines[n - 1]
             if not self.kept[n - 1] and text.strip():
-                text = "\r\n" if text.endswith("\r\n") else ("\n" if text.endswith("\n") else "")
+                text = text[len(text.rstrip("\r\n")):]
             out.append(text)
         return "".join(out)
 
@@ -270,14 +273,15 @@ def build_view(path: str, source: str, printed: Dict[int, str], expanded: Dict[i
                ) -> FileView:
     """The view of a file from its lines as printed with only directives
     processed, and with macros expanded."""
-    lines = source.splitlines(keepends=True)
+    lines = _SOURCE_LINE.findall(source)
     kept: List[bool] = []
     in_comment = [False]
     for n, text in enumerate(lines, 1):
         out = printed.get(n)
         if out is None:
-            # Code continued with a backslash is printed on its first line.
-            kept.append(n > 1 and kept[-1] and lines[n - 2].rstrip("\r\n").endswith("\\"))
+            # Code continued with a backslash, which may have spaces after it,
+            # is printed on its first line.
+            kept.append(n > 1 and kept[-1] and lines[n - 2].rstrip(" \t\f\v\r\n").endswith("\\"))
             continue
         directive = not in_comment[0] and _DIRECTIVE.match(out) and not _PRAGMA.match(out)
         kept.append(not directive)
