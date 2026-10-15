@@ -271,6 +271,10 @@ def test_function_end_ignores_braces_in_comments_and_literals():
         }
         __device__ void g() {}
     """) == 9
+    # However much code follows the function.
+    after = "\n".join(f"__device__ int f{i}(int x) {{ return x * {i} + 12345; }}"
+                      for i in range(6000))
+    assert _end("__device__ void k(int *a) {\n  a[0] = 1;\n}\n" + after) == 3
 
 
 def test_function_end_skips_braced_initializers_before_the_body():

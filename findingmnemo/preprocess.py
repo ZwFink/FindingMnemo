@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from .ir import _parse_metadata
@@ -247,8 +248,11 @@ class FileView:
                      column: int = 0) -> Optional[int]:
         """The line of the closing brace of the function that starts at
         ``column`` of line ``start``, counting only what the device compiled."""
-        code = [self.code.get(n) for n in range(1, len(self.lines) + 1)]
-        return function_end(code, start, last_code_line, column)
+        return function_end(self._code_lines, start, last_code_line, column)
+
+    @cached_property
+    def _code_lines(self) -> List[Optional[str]]:
+        return [self.code.get(n) for n in range(1, len(self.lines) + 1)]
 
     def contradiction(self, lines: Iterable[int]) -> Optional[int]:
         """The first of ``lines``, which the debug info attributes code to, that
@@ -412,12 +416,11 @@ def function_end(code: List[Optional[str]], start: int,
     not end the function. Returns None when no body is found, or when it would
     end before ``last_code_line``.
     """
-    tokens = list(_significant(code, start, column))
     depth, init_depth, opened, member_init = 0, 0, False, False
     paren, arrow = 0, False
     prev, before_word = "", ""
     word: List[str] = []
-    for i, (n, c) in enumerate(tokens):
+    for (n, c), after in _with_next(_significant(code, start, column)):
         if not opened:
             if c == "{":
                 after_word = bool(word) or prev == ">"
@@ -459,7 +462,6 @@ def function_end(code: List[Optional[str]], start: int,
         elif c == "}":
             depth -= 1
             if depth == 0:
-                after = tokens[i + 1][1] if i + 1 < len(tokens) else ""
                 if member_init and after in (",", "{"):
                     # A member initializer; the body is still to come.
                     opened = False
@@ -474,9 +476,17 @@ def function_end(code: List[Optional[str]], start: int,
         else:
             word = []
         prev = c
-        if len(tokens) > 200000:
-            break
     return None
+
+
+def _with_next(tokens: Iterator[Tuple[int, str]]) -> Iterator[Tuple[Tuple[int, str], str]]:
+    """Each token with the character after it, or "" after the last."""
+    current = next(tokens, None)
+    for token in tokens:
+        yield current, token[1]
+        current = token
+    if current:
+        yield current, ""
 
 
 def md5(path: str) -> Optional[str]:
