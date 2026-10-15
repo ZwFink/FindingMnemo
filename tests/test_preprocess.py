@@ -8,7 +8,7 @@ import pytest
 from findingmnemo import ir
 from findingmnemo.export import _Function, _function_source, _Program
 from findingmnemo.preprocess import (CompileUnit, PreprocessError, build_view, compile_units,
-                                     function_end, parse_output, preprocess, preprocess_argv,
+                                     function_column, function_end, parse_output, preprocess, preprocess_argv,
                                      split_command)
 
 
@@ -537,6 +537,25 @@ def test_missing_compiler_or_compile_directory_fails(tmp_path):
         preprocess(unit, {unit.file})
 
 
+def test_function_column_skips_code_before_the_function():
+    assert function_column("  if (n > 0) { forall(n, [=] __device__ (int i) {", "operator()", True) == 25
+    assert function_column("struct Fill { void operator()(int i) const {", "operator()", False) == 19
+    assert function_column("template <> Box<int>::Box(int w) {", "Box<int>", False) == 22
+    assert function_column("Box<T>::~Box() {", "~Box", False) == 8
+    assert function_column("int twice(int x) { return twice(x - 1); }", "twice", False) == 4
+    assert function_column("__global__ void k(int *p) { p[0] = 1; }", "k", False) == 16
+    # Subscripts, attributes and literals do not start a lambda.
+    assert function_column('a[i] = "[x]"[0] + g([[maybe_unused]] int x, [=] {', "operator()", True) == 44
+    # Two lambdas, or none, and a name not on the line.
+    assert function_column("f([] { g(); }, [=] {", "operator()", True) is None
+    assert function_column("    (int i) {", "operator()", True) is None
+    assert function_column("struct Box {", "Box", False) is None
+    # Scanning from the column ends at the function's own brace.
+    lines = ["if (n) { forall(n, [=] (int i) {", "  a[i] = 1;", "});", "sync();", "}"]
+    assert function_end(lines, 1, column=function_column(lines[0], "operator()", True)) == 3
+    assert function_end(lines, 1) == 5
+
+
 def test_function_end_of_a_lambda_with_a_trailing_return_type():
     assert _end("""
         forall(0, n,
@@ -557,7 +576,17 @@ LAMBDAS = _src("""
       if (i < n) body(i);
     }
 
+    struct Fill { int *a; __device__ void operator()(int i) const {
+        a[i] = 4;
+      }
+    };
+
     void run(int *a, double *b, int n) {
+      if (n > 0) { forall<<<1, 64>>>(n, [=] __device__ (int i) {
+          a[i] = 3;
+        });
+        forall<<<1, 64>>>(n, Fill{a});
+      }
       forall<<<1, 64>>>(n, [=] __device__ (int i) {
     #ifdef BUMP
         a[i] = add_int(a[i], 2);
@@ -586,11 +615,17 @@ def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
         if os.path.normpath(fn.file or "") != unit.file or not fn.line:
             continue
         last = max(ln for b in fn.blocks for f, ln in b.lines if os.path.normpath(f) == unit.file)
-        ends[fn.display_name, fn.line] = view.function_end(fn.line, last)
+        column = view.function_column(fn.line, fn.display_name, fn.is_lambda)
+        ends[fn.display_name, fn.line] = view.function_end(fn.line, last, column)
     first = lines.index("  forall<<<1, 64>>>(n, [=] __device__ (int i) {") + 1
     second = lines.index("      [=] __device__ (int i) -> double {") + 1
     assert ends[("operator()", first)] == lines.index("  });") + 1
     assert ends[("operator()", second)] == lines.index("      });") + 1
+    # Not at the brace of the if or the struct before them on the line.
+    in_if = lines.index("  if (n > 0) { forall<<<1, 64>>>(n, [=] __device__ (int i) {") + 1
+    assert ends[("operator()", in_if)] == in_if + 2
+    fill = lines.index("struct Fill { int *a; __device__ void operator()(int i) const {") + 1
+    assert ends[("operator()", fill)] == fill + 2
     # The whole function comes from DEFINE_ADD on one line.
     assert ends[("add_int", 3)] == 3
     assert not view.compiled(lines.index("    a[i] = add_int(a[i], 2);") + 1)
@@ -807,5 +842,8 @@ def test_export_fails_for_a_function_without_a_device_view(tmp_path):
     fails(f"{tmp_path}/other.hip, the file of helper, is not part of its recorded device compile",
           file=str(tmp_path / "other.hip"))
     last = len(TOY.splitlines())
-    fails(f"cannot find the closing brace of helper, which starts on line {last} of {unit.file}",
+    fails(f"cannot find where helper begins: line {last} of {unit.file} does not have its name",
           line=last)
+    call = TOY.splitlines().index("      p[i] = helper(SQUARE(p[i]") + 1
+    fails(f"cannot find the closing brace of helper, which starts on line {call} of {unit.file}",
+          line=call)

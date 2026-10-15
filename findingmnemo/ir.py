@@ -52,6 +52,9 @@ class Function:
     # Whether the compiler wrote the function, as it does a copy constructor
     # the class does not declare.
     artificial: bool = False
+    # Whether the function is the body of a lambda, which has no name to find
+    # in the source.
+    is_lambda: bool = False
     blocks: List[BasicBlock] = field(default_factory=list)
     loops: List[Loop] = field(default_factory=list)
     # The function's definition, from ``define`` to the closing brace.
@@ -127,6 +130,10 @@ class _DebugInfo:
         fn.display_name = fields.get("name", "").strip('"') or None
         fn.unit_id = self._ref(fields.get("unit"))
         fn.artificial = "DIFlagArtificial" in fields.get("flags", "")
+        # A lambda's class has no name.
+        scope = self.nodes.get(self._ref(fields.get("scope")))
+        fn.is_lambda = (fn.display_name == "operator()" and scope is not None
+                        and scope[0] == "DICompositeType" and "name" not in scope[1])
 
 
 def parse_module(ir_text: str) -> Dict[str, Function]:

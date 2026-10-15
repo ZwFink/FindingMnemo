@@ -454,7 +454,12 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
         raise SystemExit(f"findingmnemo export: the debug info has no source location for "
                          f"{fn.display_name}")
     unit, view = prog.view(fn)
-    end = view.function_end(fn.line, _last_line(fn.ir_fn))
+    column = view.function_column(fn.line, fn.ir_fn.display_name or "", fn.ir_fn.is_lambda)
+    if column is None:
+        what = "exactly one lambda" if fn.ir_fn.is_lambda else "its name"
+        raise SystemExit(f"findingmnemo export: cannot find where {fn.display_name} begins: "
+                         f"line {fn.line} of {fn.file} does not have {what}")
+    end = view.function_end(fn.line, _last_line(fn.ir_fn), column)
     if not end:
         raise SystemExit(f"findingmnemo export: cannot find the closing brace of "
                          f"{fn.display_name}, which starts on line {fn.line} of {fn.file}")

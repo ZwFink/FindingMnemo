@@ -237,11 +237,18 @@ class FileView:
             out.append(text)
         return "".join(out)
 
-    def function_end(self, start: int, last_code_line: Optional[int] = None) -> Optional[int]:
-        """The line of the closing brace of the function that starts on
-        ``start``, counting only what the device compiled."""
+    def function_column(self, start: int, name: str, is_lambda: bool) -> Optional[int]:
+        """Where on line ``start`` the function begins, as in the code the
+        device compiled; see ``function_column``."""
+        text = self.code.get(start)
+        return function_column(text, name, is_lambda) if text else None
+
+    def function_end(self, start: int, last_code_line: Optional[int] = None,
+                     column: int = 0) -> Optional[int]:
+        """The line of the closing brace of the function that starts at
+        ``column`` of line ``start``, counting only what the device compiled."""
         code = [self.code.get(n) for n in range(1, len(self.lines) + 1)]
-        return function_end(code, start, last_code_line)
+        return function_end(code, start, last_code_line, column)
 
     def contradiction(self, lines: Iterable[int]) -> Optional[int]:
         """The first of ``lines``, which the debug info attributes code to, that
@@ -276,10 +283,11 @@ def build_view(path: str, source: str, printed: Dict[int, str], expanded: Dict[i
     return FileView(path, lines, kept, code)
 
 
-def _lex_line(text: str, state: List[bool]) -> Iterator[Tuple[str, str]]:
-    """Yield ("code", char) for characters outside comments and literals, and
-    ("literal", "x") once per string or character literal. ``state[0]`` says
-    whether a block comment is open, and is updated."""
+def _lex_line(text: str, state: List[bool]) -> Iterator[Tuple[str, str, int]]:
+    """Yield ("code", char, index) for characters outside comments and
+    literals, and ("literal", "x", index) once per string or character literal,
+    at its start. ``state[0]`` says whether a block comment is open, and is
+    updated."""
     i, n = 0, len(text)
     while i < n:
         c = text[i]
@@ -297,6 +305,7 @@ def _lex_line(text: str, state: List[bool]) -> Iterator[Tuple[str, str]]:
             i += 2
             continue
         if c == '"' or (c == "'" and not _digit_separator(text, i)):
+            start = i
             raw = c == '"' and i > 0 and text[i - 1] == "R"
             if raw:
                 m = re.match(r'"([^()\\ ]{0,16})\(', text[i:])
@@ -307,10 +316,10 @@ def _lex_line(text: str, state: List[bool]) -> Iterator[Tuple[str, str]]:
                 while j < n and text[j] != c:
                     j += 2 if text[j] == "\\" else 1
                 i = j + 1
-            yield "literal", "x"
+            yield "literal", "x", start
             continue
         if not c.isspace():
-            yield "code", c
+            yield "code", c, i
         i += 1
 
 
@@ -322,14 +331,70 @@ def _digit_separator(text: str, i: int) -> bool:
     return j < i and text[j].isdigit() and i + 1 < len(text) and text[i + 1].isalnum()
 
 
-def _significant(code: List[Optional[str]], start: int) -> Iterator[Tuple[int, str]]:
+def _significant(code: List[Optional[str]], start: int, column: int = 0
+                 ) -> Iterator[Tuple[int, str]]:
     state = [False]
     for n in range(start, len(code) + 1):
         text = code[n - 1]
         if text is None:
             continue
-        for kind, c in _lex_line(text, state):
-            yield n, c
+        for _, c, i in _lex_line(text, state):
+            if n > start or i >= column:
+                yield n, c
+
+
+def function_column(text: str, name: str, is_lambda: bool) -> Optional[int]:
+    """Where the function begins on ``text``, the line the debug info starts
+    it on: at its name, or at a lambda's ``[``. Code before it on the line,
+    such as an ``if`` the lambda is written in, is not part of the function.
+
+    None if the name is not on the line, or the line does not start exactly
+    one lambda.
+    """
+    # Comments become spaces and each literal an x.
+    chars = [" "] * len(text)
+    for _, c, i in _lex_line(text, [False]):
+        chars[i] = c
+    code = "".join(chars)
+    if is_lambda:
+        starts = [i for i, c in enumerate(code) if c == "[" and _introduces_lambda(code, i)]
+        return starts[0] if len(starts) == 1 else None
+    if name.startswith("operator"):
+        m = re.search(r"\boperator\b", code)
+        return m.start() if m else None
+    if name.startswith("~"):
+        pattern = r"~\s*" + re.escape(name[1:].split("<")[0]) + r"\b"
+    else:
+        pattern = r"\b" + re.escape(name.split("<")[0]) + r"\b"
+    for m in re.finditer(pattern, code):
+        # The name of the function, not of the class in Box<T>::Box( or of a
+        # struct the line also opens.
+        rest = code[_after_template_args(code, m.end()):].lstrip()
+        if not rest or rest.startswith("("):
+            return m.start()
+    return None
+
+
+def _introduces_lambda(code: str, i: int) -> bool:
+    """Whether the ``[`` at ``i`` starts a lambda, not a subscript or an
+    attribute's [[."""
+    before = code[:i].rstrip()
+    if code.startswith("[", i + 1) or before.endswith("["):
+        return False
+    return not before or not (before[-1].isalnum() or before[-1] in "_)]")
+
+
+def _after_template_args(code: str, i: int) -> int:
+    """The index after the template arguments that start at ``i``, if any."""
+    j = len(code) - len(code[i:].lstrip())
+    if not code.startswith("<", j):
+        return i
+    depth = 0
+    for k in range(j, len(code)):
+        depth += {"<": 1, ">": -1}.get(code[k], 0)
+        if depth == 0:
+            return k + 1
+    return len(code)
 
 
 # Words after which a '{' opens a lambda's body even inside parentheses.
@@ -337,16 +402,17 @@ _BODY_AFTER_WORD = {"mutable", "noexcept", "const", "constexpr", "consteval"}
 
 
 def function_end(code: List[Optional[str]], start: int,
-                 last_code_line: Optional[int] = None) -> Optional[int]:
-    """Find the line of the brace that closes the function starting on line
-    ``start``. ``code[n - 1]`` is line n's text, or None to ignore the line.
+                 last_code_line: Optional[int] = None, column: int = 0) -> Optional[int]:
+    """Find the line of the brace that closes the function starting at
+    ``column`` of line ``start``. ``code[n - 1]`` is line n's text, or None to
+    ignore the line.
 
     Braced initializers before the body, such as default arguments, are
     skipped, and a constructor's member initializers (``: a{1}, b{2} {``) do
     not end the function. Returns None when no body is found, or when it would
     end before ``last_code_line``.
     """
-    tokens = list(_significant(code, start))
+    tokens = list(_significant(code, start, column))
     depth, init_depth, opened, member_init = 0, 0, False, False
     paren, arrow = 0, False
     prev, before_word = "", ""

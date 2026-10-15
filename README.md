@@ -215,8 +215,8 @@ compiled, the view is wrong (the file was preprocessed differently from the
 build) and the export fails. The export also fails, naming the function or
 file and the reason, whenever a kernel's or device function's source cannot be
 cut this way: the debug info has no command line or no source location for
-it, preprocessing fails, its file is not part of the recorded compile, or its
-closing brace is not found. It never falls back to the source as written.
+it, preprocessing fails, its file is not part of the recorded compile, or
+where it begins or its closing brace is not found. It never falls back to the source as written.
 Device code the compiler wrote, such as a copy constructor the class does not
 declare, has no text to cut; it has `"compiler_generated": true` instead of a
 source.
@@ -276,9 +276,11 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   translation unit of each kernel it records; other files, such as those with
   only host code, are referenced by path in `file.json`.
 - **Function ends come from brace matching.** The debug info records where a
-  function starts, not where it ends. The export scans from the start line to
-  the closing brace (skipping comments, literals, default-argument
-  initializers and member initializers); if that fails or would end before the
+  function starts, not where it ends, and only by line. The export finds the
+  function on its start line, at its name or, for a lambda, at the `[` of the
+  only lambda that starts there, and scans from there to the closing brace
+  (skipping comments, literals, default-argument initializers and member
+  initializers). If either step fails, or the end would come before the
   function's last line of code, the export fails.
 - **Device views need the build environment.** Preprocessing again needs the
   compiler, headers and compile directory at their recorded paths, and
