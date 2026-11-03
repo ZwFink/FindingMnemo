@@ -258,6 +258,47 @@ def test_view_takes_text_from_the_file_with_continued_lines_and_crlf():
     assert view.text(2, 6) == source[2:]
 
 
+def test_function_in_a_macro_argument_ends_with_the_macro_call():
+    source = _src("""
+        #define FORALL(i, N, ...) forall(N, [=] __device__ (int i) {__VA_ARGS__})
+        void mass(int n, double *y) {
+          FORALL(e, n,
+          {
+            for (int q = 0; q < 4; ++q) // {
+            {
+              y[e] += q;
+            }
+          });
+          NOTHING(n,
+                  y)
+        }
+    """)
+    printed = {n: text.rstrip("\n") for n, text in enumerate(source.splitlines(True), 1)}
+    # The whole expansion is on the line of the macro's name.
+    view = _view(source, _marked(printed), _marked({
+        2: "void mass(int n, double *y) {",
+        3: "  forall(n, [=] __attribute__((device)) (int e) {{ for (int q = 0; q < 4; ++q) "
+           "{ y[e] += q; } }});",
+        12: "}"}))
+    assert view.function_column(3, "operator()", True) == 12
+    assert view.function_end(3, 3, 12) == 9
+    assert view.text(3, 9) == "".join(source.splitlines(True)[2:9])
+    # A macro call that expands to nothing does not end mass early.
+    assert view.function_end(2) == 12
+    # Code after the macro call still means the end is wrong.
+    assert view.function_end(3, 10, 12) is None
+    # Nor does a macro call that expands to nothing extend the function
+    # before it.
+    source = "__device__ void f() {}\nNOTHING(a,\n        b)\n"
+    view = _view(source, _marked({1: "__device__ void f() {}", 2: "NOTHING(a,", 3: "        b)"}),
+                 _marked({1: "__attribute__((device)) void f() {}"}))
+    assert view.function_end(1) == 1
+    # A call that is not a macro is printed on its own lines and ends nothing.
+    source = "f(n, [=] (int i) { y[i] = 0; }, g(a,\n                                    b));\n"
+    view = _view(source, _marked({1: source.split("\n")[0], 2: source.split("\n")[1]}))
+    assert view.function_end(1, 1, 5) == 1
+
+
 # Function ends
 
 
@@ -642,6 +683,54 @@ def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
     assert not view.compiled(lines.index("    a[i] = add_int(a[i], 2);") + 1)
     template = lines.index("__global__ void forall(int n, Body body) {") + 1
     assert any(ends[k] == template + 3 for k in ends if k[1] == template)
+
+
+# MFEM's MFEM_FORALL_2D, whose body is a macro argument.
+FORALL_MACRO = _src("""
+    #include <hip/hip_runtime.h>
+    template <typename Body>
+    __global__ void forall_kernel_2D(int n, Body body) {
+      if (blockIdx.x < n) body(blockIdx.x);
+    }
+    template <typename Body>
+    void forall_2D(int n, int x, int y, Body &&body) {
+      forall_kernel_2D<<<n, dim3(x, y)>>>(n, body);
+    }
+    #define MFEM_FORALL_2D(i, N, X, Y, BZ, ...) \\
+      forall_2D(N, X, Y, [=] __device__ (int i) {__VA_ARGS__})
+
+    void mass(int ne, int q1d, const double *x, double *y) {
+      MFEM_FORALL_2D(e, ne, q1d, q1d, 1,
+      {
+        double sum = 0.0;
+        for (int q = 0; q < q1d; ++q)
+        {
+          sum += x[e * q1d + q];
+        }
+        y[e] = sum;
+      });
+    }
+""")
+
+
+@needs_clang
+def test_export_of_a_lambda_in_a_macro_argument(tmp_path):
+    (tmp_path / "mass.hip").write_text(FORALL_MACRO)
+    module, = _compile(tmp_path, "mass.hip", "-O0")
+    unit, views = _views(module)
+    lines = FORALL_MACRO.splitlines()
+    call = lines.index("  MFEM_FORALL_2D(e, ne, q1d, q1d, 1,") + 1
+    body = next(f for f in ir.parse_module(module).values() if f.is_lambda)
+    # Clang gives all of the body the line of the macro call.
+    assert body.line == call
+    assert {ln for b in body.blocks for _, ln in b.lines} == {call}
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    fn = _Function("device", body.name, body.display_name, "lambda", unit.file, body.line)
+    fn.ir_fn, fn.unit = body, unit
+    source, _ = _function_source(prog, fn)
+    assert fn.end_line == lines.index("  });") + 1
+    assert source == "\n".join(lines[call - 1:fn.end_line]) + "\n"
 
 
 @needs_clang

@@ -250,8 +250,35 @@ class FileView:
     def function_end(self, start: int, last_code_line: Optional[int] = None,
                      column: int = 0) -> Optional[int]:
         """The line of the closing brace of the function that starts at
-        ``column`` of line ``start``, counting only what the device compiled."""
-        return function_end(self._code_lines, start, last_code_line, column)
+        ``column`` of line ``start``, counting only what the device compiled.
+        A function in the arguments of a macro call, such as a lambda passed
+        to MFEM_FORALL, ends where the macro call does."""
+        end = function_end(self._code_lines, start, None, column)
+        if end:
+            end = self._macro_call_end(end)
+        if end and last_code_line and end < last_code_line:
+            return None
+        return end
+
+    def _macro_call_end(self, line: int) -> int:
+        """The line where a macro call left open on ``line`` closes, or
+        ``line``. The preprocessor puts a macro's whole expansion on the line
+        of its name, so the lines its arguments continue on have no code
+        once macros are expanded; brackets are counted as written."""
+        depth, state = 0, [False]
+        for n in range(line, len(self.lines) + 1):
+            if n > line and n in self.code:
+                break
+            if not self.kept[n - 1]:
+                continue
+            for kind, c, _ in _lex_line(self.lines[n - 1], state):
+                if kind == "code" and c in "([{":
+                    depth += 1
+                elif kind == "code" and c in ")]}":
+                    depth = max(depth - 1, 0)
+            if not depth:
+                return n
+        return line
 
     @cached_property
     def _code_lines(self) -> List[Optional[str]]:
