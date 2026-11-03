@@ -1,4 +1,4 @@
-"""Command-line entry point: ``findingmnemo record`` and ``findingmnemo export``."""
+"""Command-line entry point: ``findingmnemo record``, ``export`` and ``copy``."""
 
 import argparse
 import datetime
@@ -9,7 +9,7 @@ import socket
 import subprocess
 import sys
 
-from . import export
+from . import export, relocate
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SHIM = os.path.join(REPO_ROOT, "lib", "libfindingmnemo_stacks.so")
@@ -78,6 +78,18 @@ def export_cmd(args) -> int:
     return 0
 
 
+def copy_cmd(args) -> int:
+    path_map = {}
+    for item in args.map:
+        old, sep, new = item.partition("=")
+        if not sep or not old or not new:
+            sys.exit(f"findingmnemo copy: --map takes OLD=NEW, not {item!r}")
+        path_map[os.path.abspath(old)] = os.path.abspath(new)
+    relocate.copy(args.db, args.dest, args.recordings, path_map)
+    print(f"database: {os.path.abspath(args.dest)}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="findingmnemo", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -100,6 +112,16 @@ def main(argv=None) -> int:
                      help="directory with llvm-dis, opt, llvm-symbolizer, llvm-cxxfilt, llvm-objdump and "
                           "clang-offload-bundler (default: Mneme's LLVM)")
     exp.set_defaults(func=export_cmd)
+
+    cp = sub.add_parser("copy", help="copy a database to another directory and update its paths")
+    cp.add_argument("db", help="database directory to copy")
+    cp.add_argument("dest", help="new database directory (must not exist)")
+    cp.add_argument("--recordings", action="store_true",
+                    help="also copy each program's run directory (Mneme recordings and launch "
+                         "stacks) to <dest>/<program>/recording/")
+    cp.add_argument("--map", action="append", default=[], metavar="OLD=NEW",
+                    help="rewrite paths under OLD to NEW, for files moved separately (repeatable)")
+    cp.set_defaults(func=copy_cmd)
 
     args = parser.parse_args(argv)
     return args.func(args)
