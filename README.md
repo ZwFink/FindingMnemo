@@ -75,6 +75,29 @@ findingmnemo export runs/app-small runs/app-large -o app-db
 `--mneme-arg=<arg>` passes arguments to `mneme record`, for example
 `--mneme-arg=-vass --mneme-arg=16` for a 16 GB virtual address space.
 
+### Copying a database
+
+Paths inside a database are relative, but it refers to the files around it by
+absolute path: each program's run directory and Mneme recordings
+(`run_dir`, `mneme_record`, and the `prologue`/`epilogue` snapshots in
+`instances.json`), the executable, and the source files. `findingmnemo copy`
+copies a database and rewrites those paths, for example to share it:
+
+```bash
+findingmnemo copy app-db /shared/app-db --recordings \
+    --map /my/scratch/app/src=/shared/app-src
+```
+
+`--recordings` copies each program's run directory (`run.json`, `stacks/`,
+`record-db/`) into `<program>/recording/` of the new database, so the instances
+stay replayable. Recordings can be large (tens of GB for a run that snapshots a
+big memory pool). Without it, the copy still points to the original
+recordings. `--map OLD=NEW` rewrites paths under `OLD`, for files copied
+separately, such as the application's source tree. The original database is
+not changed. Exporting a copied recording again still needs the application's
+source and build directories, and its compiler, at their recorded paths,
+because export reruns the compile commands recorded in the device code.
+
 ## Examples
 
 - `examples/mneme-hip-vec-add.sh <mneme-src> <work>` builds and records Mneme's
