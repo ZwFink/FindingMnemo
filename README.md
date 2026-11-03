@@ -90,11 +90,13 @@ findingmnemo copy app-db /shared/app-db --recordings \
 
 `--recordings` copies each program's run directory (`run.json`, `stacks/`,
 `record-db/`) into `<program>/recording/` of the new database, so the instances
-stay replayable. Recordings can be large (tens of GB for a run that snapshots a
-big memory pool). Without it, the copy still points to the original
-recordings. `--map OLD=NEW` rewrites paths under `OLD`, for files copied
-separately, such as the application's source tree. The original database is
-not changed. Exporting a copied recording again still needs the application's
+stay replayable. Other files in the run directory, such as the application's
+inputs, are not copied and keep their original paths. Recordings can be large
+(tens of GB for a run that snapshots a big memory pool). Without it, the copy
+still points to the original recordings. `--map OLD=NEW` rewrites paths that
+start with `OLD`, for files copied separately, such as the application's
+source tree. A path through a symlink, such as `/usr/workspace` on LC, also
+matches the path it resolves to. The original database is not changed. Exporting a copied recording again still needs the application's
 source and build directories, and its compiler, at their recorded paths,
 because export reruns the compile commands recorded in the device code.
 

@@ -89,13 +89,76 @@ def test_copy_leaves_escaped_quotes_alone(tmp_path):
     dest = tmp_path / "out"
     copy(str(db), str(dest), recordings=True)
     args = json.loads((dest / "app" / "program.json").read_text())["arguments"]
-    assert args == [f'-DDIR="{run}"', str(dest / "app" / "recording" / "in.txt")]
+    assert args == [f'-DDIR="{run}"', str(run / "in.txt")]
+
+
+def test_copy_moves_only_the_copied_parts_of_a_run_dir(tmp_path):
+    run, db = _make(tmp_path)
+    (run / "in.txt").write_text("input")
+    _write(str(run / "run.json"), {"name": "app", "cwd": str(run), "arguments": [str(run / "in.txt")]})
+    _write(str(db / "app" / "program.json"),
+           {"run_dir": str(run), "arguments": [str(run / "in.txt")],
+            "stacks": str(run / "stacks" / "1.txt")})
+    dest = tmp_path / "out"
+    copy(str(db), str(dest), recordings=True)
+    rec = dest / "app" / "recording"
+    prog = json.loads((dest / "app" / "program.json").read_text())
+    assert prog["run_dir"] == str(rec)
+    # The input was not copied, so its path still points to the original.
+    assert prog["arguments"] == [str(run / "in.txt")]
+    # stacks/ does not exist in this run, so it was not copied or rewritten.
+    assert prog["stacks"] == str(run / "stacks" / "1.txt")
+    assert json.loads((rec / "run.json").read_text()) == {
+        "name": "app", "cwd": str(run), "arguments": [str(run / "in.txt")]}
+    fn = json.loads((dest / "app" / "files" / "k.cpp" / "k" / "function.json").read_text())
+    assert fn["mneme_record"] == str(rec / "record-db" / "1.json")
+
+
+@pytest.mark.parametrize("recordings", [True, False])
+def test_copy_of_a_copy_through_a_symlink(tmp_path, recordings):
+    _, db = _make(tmp_path)
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    # The first copy is written through the symlink, the second reads it
+    # through the real path, as with /usr/workspace and /usr/WS2 on LC.
+    first = link / "c1"
+    copy(str(db), str(first), recordings=True)
+    second = tmp_path / "c2"
+    copy(str(real / "c1"), str(second), recordings=recordings)
+    rec = second / "app" / "recording"
+    assert (rec / "record-db" / "snap.mneme").exists()
+    assert json.loads((second / "app" / "program.json").read_text())["run_dir"] == str(rec)
+    fn = json.loads((second / "app" / "files" / "k.cpp" / "k" / "function.json").read_text())
+    assert fn["mneme_record"] == str(rec / "record-db" / "1.json")
+
+
+def test_copy_maps_both_spellings_of_a_symlinked_prefix(tmp_path):
+    run, db = _make(tmp_path)
+    src = tmp_path / "src-real"
+    src.mkdir()
+    (tmp_path / "src-link").symlink_to(src)
+    _write(str(db / "app" / "program.json"),
+           {"run_dir": str(run), "executable": str(src / "app.exe")})
+    dest = tmp_path / "out"
+    copy(str(db), str(dest), path_map={str(tmp_path / "src-link"): "/shared/src"})
+    prog = json.loads((dest / "app" / "program.json").read_text())
+    assert prog["executable"] == "/shared/src/app.exe"
 
 
 def test_copy_refuses_dest_inside_db(tmp_path):
     _, db = _make(tmp_path)
     with pytest.raises(SystemExit):
         copy(str(db), str(db / "copy"))
+    assert not (db / "copy").exists()
+
+
+def test_copy_refuses_dest_inside_db_through_a_symlink(tmp_path):
+    _, db = _make(tmp_path)
+    (tmp_path / "link").symlink_to(db)
+    with pytest.raises(SystemExit):
+        copy(str(db), str(tmp_path / "link" / "copy"))
     assert not (db / "copy").exists()
 
 
