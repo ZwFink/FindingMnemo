@@ -196,9 +196,9 @@ class _Program:
                                record.get("SourceFile") or code.file, record.get("SourceLine"))
         if record.get("SourceLine"):
             kernel.line = record["SourceLine"]
-        source = RecordedExecution.from_json(record_path).kernel_source()
-        if source:
-            self.source_copies[kernel.file] = source.file
+        copy = _recorded_copy(RecordedExecution.from_json(record_path))
+        if copy:
+            self.source_copies[kernel.file] = copy
         kernel.kernel = _Kernel(code, record, record_path, "\n".join(ir_texts))
 
     def build_views(self) -> None:
@@ -357,6 +357,17 @@ def _unique(path: str, used: set) -> str:
     return candidate
 
 
+def _recorded_copy(execution: RecordedExecution) -> Optional[str]:
+    """The copy `mneme record --copy-source` made of the kernel's file, if it
+    is usable. kernel_source() falls back to the original file when there is
+    no copy or the copy is missing or changed; that file is read at export
+    like any other, rather than counted as recorded."""
+    source = execution.kernel_source()
+    if source and execution.source_copy and source.file == execution.source_copy:
+        return source.file
+    return None
+
+
 def _assign_paths(prog: _Program) -> Dict[Optional[str], str]:
     file_dirs: Dict[Optional[str], str] = {}
     used: set = set()
@@ -366,6 +377,10 @@ def _assign_paths(prog: _Program) -> Dict[Optional[str], str]:
         if fn.file not in file_dirs:
             base = os.path.basename(fn.file) if fn.file else "_unknown"
             file_dirs[fn.file] = _unique(f"files/{_safe_name(base)}", used)
+            # The file's own entries, which a function such as source::hip
+            # would otherwise be named after.
+            used.update(f"{file_dirs[fn.file]}/{name}"
+                        for name in ("file.json", _source_name(fn.file)))
         path = f"{file_dirs[fn.file]}/{_dir_name(fn, lambda_lines)}"
         if path in used:
             # Overloads share a short name; the symbol tells them apart.
