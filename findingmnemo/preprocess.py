@@ -211,7 +211,14 @@ def parse_output(text: str, directory: str) -> Dict[str, Dict[int, str]]:
         if cur is None:
             continue
         if raw.strip():
-            cur[line] = raw
+            if line not in cur:
+                cur[line] = raw
+            elif not _DIRECTIVE.match(raw):
+                # A _Pragma in a macro's arguments, such as MFEM_UNROLL in
+                # MFEM_FORALL's body, is printed as a #pragma on a line of its
+                # own, after which a marker returns to the line the expansion
+                # is on to finish it.
+                cur[line] += " " + raw
         line += 1
     return files
 
@@ -260,25 +267,44 @@ class FileView:
             return None
         return end
 
-    def _macro_call_end(self, line: int) -> int:
-        """The line where a macro call left open on ``line`` closes, or
-        ``line``. The preprocessor puts a macro's whole expansion on the line
-        of its name, so the lines its arguments continue on have no code
-        once macros are expanded; brackets are counted as written."""
+    def _macro_call_end(self, line: int) -> Optional[int]:
+        """The line where a macro call left open on ``line`` closes, ``line``
+        when none is, or None when the call does not close.
+
+        The preprocessor puts a macro's whole expansion, and the code after it
+        on the same line, on the line of its name, so the lines its arguments
+        continue on have no code once macros are expanded. The call closes on
+        the last of them that closes more of the brackets left open on
+        ``line`` than any before it; brackets are counted as written. Brackets
+        opened before the call, as in ``if (x) { FORALL(e, n,``, close on a
+        line with code."""
         depth, state = 0, [False]
-        for n in range(line, len(self.lines) + 1):
-            if n > line and n in self.code:
+        for _, c, _ in _lex_line(self.lines[line - 1], state):
+            if c in "([{":
+                depth += 1
+            elif c in ")]}":
+                # Closes a bracket opened before this line.
+                depth = max(depth - 1, 0)
+        left_open = low = depth
+        end, tokens = line, False
+        for n in range(line + 1, len(self.lines) + 1):
+            if n in self.code:
                 break
             if not self.kept[n - 1]:
                 continue
-            for kind, c, _ in _lex_line(self.lines[n - 1], state):
-                if kind == "code" and c in "([{":
+            for _, c, _ in _lex_line(self.lines[n - 1], state):
+                tokens = True
+                if c in "([{":
                     depth += 1
-                elif kind == "code" and c in ")]}":
-                    depth = max(depth - 1, 0)
-            if not depth:
-                return n
-        return line
+                elif c in ")]}":
+                    depth -= 1
+                    if depth < low:
+                        low, end = depth, n
+        # Code-free lines with tokens are a macro call's arguments, so a call
+        # that is left open without closing on them never closes.
+        if left_open and tokens and end == line:
+            return None
+        return end
 
     @cached_property
     def _code_lines(self) -> List[Optional[str]]:
