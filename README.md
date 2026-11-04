@@ -303,8 +303,10 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   `__cudaRegisterFunction` and `cuobjdump` instead of `clang-offload-bundler`.
 - **ISA comes from the main executable.** Kernels in shared libraries get call
   paths and IR but no ISA. A kernel with internal linkage, such as a template
-  from a header, can be in the code object of several translation units; if
-  they compiled it differently, the ISA is the one from the translation unit
+  from a header, can be in the code object of several translation units.
+  Copies whose instructions differ only in the offsets from the PC to the
+  functions and variables they use are the same code; if they compiled it
+  differently, the ISA is the one from the translation unit
   Mneme recorded, and a kernel Mneme did not record gets none. If Mneme
   recorded the kernel from more than one of them, the export still shows one
   kernel, from the record it reads last, and its launches from all of them.

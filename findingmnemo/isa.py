@@ -9,6 +9,13 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 _INSTRUCTION = re.compile(r"^\t\S")
+_GETPC = re.compile(r"^\ts_getpc_b64 s\[(\d+):(\d+)\]")
+# s_add_u32 and s_addc_u32 (s_add_co_u32 and s_add_co_ci_u32 on gfx12) of a
+# literal to a register that holds the PC.
+_PC_ADD = re.compile(r"^(\ts_add\w*_u32 s(\d+), s\2, )\S+$")
+# Functions: defined globally, locally or, as templates are in a relocatable
+# device code link, weakly.
+_FUNCTION_TYPES = ("T", "t", "W")
 _BUNDLE_MAGIC = b"__CLANG_OFFLOAD_BUNDLE__"
 
 
@@ -84,15 +91,19 @@ class CodeObject:
             return None
         return os.path.normpath(os.path.join(directory.group(1) if directory else "", name.group(1)))
 
-    def kernels(self) -> Set[str]:
+    def functions(self) -> Dict[str, str]:
+        """The address of each function the code object defines."""
         if not self.path:
-            return set()
+            return {}
         symbols = subprocess.run(
             [f"{self.llvm_bin}/llvm-nm", "--defined-only", self.path],
             capture_output=True, text=True,
         ).stdout.split("\n")
-        return {parts[2] for parts in map(str.split, symbols)
-                if len(parts) == 3 and parts[1] in "Tt"}
+        return {parts[2]: "0x" + parts[0] for parts in map(str.split, symbols)
+                if len(parts) == 3 and parts[1] in _FUNCTION_TYPES}
+
+    def kernels(self) -> Set[str]:
+        return set(self.functions())
 
     def disassemble(self, kernel: str) -> Optional[str]:
         if not self.path:
@@ -107,17 +118,8 @@ class CodeObject:
 
 
     def entry_locations(self, kernels: Iterable[str]) -> Dict[str, Tuple[str, str, int]]:
-        if not self.path:
-            return {}
-        symbols = subprocess.run(
-            [f"{self.llvm_bin}/llvm-nm", "--defined-only", self.path],
-            capture_output=True, text=True,
-        ).stdout.split("\n")
-        addresses = {}
-        for entry in symbols:
-            parts = entry.split()
-            if len(parts) == 3 and parts[1] in "Tt" and parts[2] in kernels:
-                addresses[parts[2]] = "0x" + parts[0]
+        kernels = set(kernels)
+        addresses = {k: a for k, a in self.functions().items() if k in kernels}
         if not addresses:
             return {}
         out = subprocess.run(
@@ -139,9 +141,24 @@ def instruction_count(isa: str) -> int:
 
 
 def _instructions(isa: Optional[str]) -> List[str]:
-    """The instructions without the addresses and encodings in their comments."""
-    return [re.sub(r"\s*//.*$", "", line) for line in (isa or "").splitlines()
-            if _INSTRUCTION.match(line)]
+    """The instructions without the addresses and encodings in their comments,
+    and without the offsets added to the PC to reach a function or variable,
+    which depend on where the rest of the code object put them."""
+    out: List[str] = []
+    pc: Set[str] = set()
+    for line in (isa or "").splitlines():
+        if not _INSTRUCTION.match(line):
+            continue
+        instruction = re.sub(r"\s*//.*$", "", line)
+        getpc = _GETPC.match(instruction)
+        add = _PC_ADD.match(instruction)
+        if getpc:
+            pc |= set(getpc.groups())
+        elif add and add.group(2) in pc:
+            pc.discard(add.group(2))
+            instruction = add.group(1) + "<pc-relative>"
+        out.append(instruction)
+    return out
 
 
 def choose(codes: List[KernelCode], units: Iterable[str] = ()) -> Optional[KernelCode]:
