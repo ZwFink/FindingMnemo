@@ -60,6 +60,8 @@ def record(args) -> int:
     env = os.environ.copy()
     env["FINDINGMNEMO_OUT"] = stack_dir
     env["FINDINGMNEMO_SHIM"] = shim
+    # Mneme adds each kernel's summed GPU time to its record.
+    env.setdefault("MNEME_KERNEL_TIMING", "profiler")
     # The preload wrapper shell also gets Mneme's record library preloaded,
     # and that library needs Mneme's runtime library on the search path.
     libdir = _mneme_config("libdir")
