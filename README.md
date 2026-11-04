@@ -131,6 +131,7 @@ xsbench-db/
 │   │   │   ├── file.json       full path of the source file
 │   │   │   └── main/function.json
 │   │   └── Simulation.cpp/
+│   │       ├── file.json       full path, "source_copied": "record"
 │   │       ├── source.cpp      the file as Mneme recorded it
 │   │       ├── run_event_based_simulation_baseline/function.json
 │   │       ├── xs_lookup_kernel_baseline/
@@ -143,6 +144,14 @@ xsbench-db/
 │   │       ├── calculate_macro_xs/{function.json, source.cpp, ir.ll}
 │   │       └── pick_mat/{function.json, source.cpp, ir.ll}
 ```
+
+Every file directory has a `file.json` with the file's full `path`. Files with
+kernels or device functions Mneme recorded also have the whole file as
+`source.<ext>`, and `source_copied` says where it came from: `record` for a
+file Mneme copied when it recorded a kernel defined there, `export` for one the
+export read from its original path, such as an application file whose device
+lambdas a RAJA or MFEM kernel template in a library header runs. Files with
+only host code have no `source.<ext>`.
 
 Every function directory has a `function.json`:
 
@@ -197,8 +206,10 @@ is easy to find from the kernel.
 
 ### Device source
 
-A file's `source.<ext>` is the file as written. A kernel's or device
-function's `source.<ext>` is the function as the device compiled it: the
+A file's `source.<ext>` is the file as written; one the export read
+(`"source_copied": "export"`) is the text its functions' sources were cut
+from, after the MD5 check below. A kernel's or device function's
+`source.<ext>` is the function as the device compiled it: the
 export reads the command of the compile the function came from in the
 recorded module's debug info (a module linked from several files, as in a HIP
 `-fgpu-rdc` build, has one for each file), reruns it with
@@ -302,9 +313,10 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   instantiated with an application lambda is filed under the library header
   that defines the kernel template, and its lambda body under the
   application file.
-- **Only files that define recorded kernels are copied.** Mneme copies the
-  translation unit of each kernel it records; other files, such as those with
-  only host code, are referenced by path in `file.json`.
+- **Files with only host code are not copied.** They are referenced by path
+  in `file.json`. Mneme copies the file that defines each kernel it records,
+  and the export writes the other files with device code from their original
+  paths.
 - **Function ends come from brace matching.** The debug info records where a
   function starts, not where it ends, and only by line. The export finds the
   function on its start line, at its name or, for a lambda, at the `[` of the

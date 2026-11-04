@@ -238,6 +238,11 @@ class _Program:
                              f"not part of its recorded device compile")
         return fn.unit, views[fn.file]
 
+    def file_view(self, path: Optional[str]) -> Optional[preprocess.FileView]:
+        """A device view of the file, if one was built; it holds the whole file
+        as the export read it after checking it against the debug info."""
+        return next((views[path] for views in self.unit_views.values() if path in views), None)
+
     def _add_launch(self, launch: stacks.LaunchPath, code: isa.KernelCode):
         kernel = self.function("kernel", launch.kernel, self.demangled[launch.kernel], code.name,
                                code.file)
@@ -445,6 +450,10 @@ def _write_text(path: str, text: Optional[str]) -> None:
             f.write(text)
 
 
+def _source_name(file: Optional[str]) -> str:
+    return "source" + (os.path.splitext(file or "")[1] or ".txt")
+
+
 def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict]:
     """The function's source as the device compiled it, updating its end line.
 
@@ -509,7 +518,7 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
 
     if fn.ir_fn:
         _write_text(os.path.join(fn_dir, "ir.ll"), fn.ir_fn.text)
-    _write_text(os.path.join(fn_dir, "source" + (os.path.splitext(fn.file or "")[1] or ".txt")), source)
+    _write_text(os.path.join(fn_dir, _source_name(fn.file)), source)
     if k:
         _write_text(os.path.join(fn_dir, "module.ll"), k.module_ir)
         _write_text(os.path.join(fn_dir, "isa.s"), k.code.isa)
@@ -554,10 +563,20 @@ def _write_program(prog: _Program, out: str) -> None:
     } for p in prog.launch_paths])
     for path, file_dir in file_dirs.items():
         os.makedirs(os.path.join(out, file_dir))
-        _write_json(os.path.join(out, file_dir, "file.json"), {"path": path})
+        file_info = {"path": path}
+        source = os.path.join(out, file_dir, _source_name(path))
+        view = prog.file_view(path)
         if path in prog.source_copies:
-            shutil.copyfile(prog.source_copies[path],
-                            os.path.join(out, file_dir, "source" + os.path.splitext(path)[1]))
+            file_info["source_copied"] = "record"
+            shutil.copyfile(prog.source_copies[path], source)
+        elif view:
+            # Mneme copies only the file that defines each kernel, so device
+            # code elsewhere, such as an application lambda that a library
+            # kernel template runs, comes from the file the views were cut from.
+            file_info["source_copied"] = "export"
+            with open(source, "w", newline="") as f:
+                f.write("".join(view.lines))
+        _write_json(os.path.join(out, file_dir, "file.json"), file_info)
     for key, fn in prog.functions.items():
         _write_function(prog, fn, *sources[key], out)
 

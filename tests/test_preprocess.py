@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -6,7 +7,8 @@ import textwrap
 import pytest
 
 from findingmnemo import ir
-from findingmnemo.export import _Function, _function_source, _Program
+from findingmnemo.export import (_Function, _function_source, _is_runtime_function, _Program,
+                                 _write_program)
 from findingmnemo.preprocess import (CompileUnit, PreprocessError, build_view, compile_units,
                                      function_column, function_end, parse_output, preprocess, preprocess_argv,
                                      split_command)
@@ -919,6 +921,61 @@ def _program_with_views(module, units):
         prog.functions[("device", f.name)] = fn
     prog.build_views()
     return prog
+
+
+@needs_clang
+def test_export_writes_files_mneme_did_not_copy(tmp_path):
+    # As with RAJA: the kernel template is in a library header, which Mneme
+    # copies, and the lambda it runs is in the application file.
+    (tmp_path / "forall.h").write_text(_src("""
+        template <typename Body>
+        __global__ void forall(int n, Body body) {
+          int i = blockIdx.x * blockDim.x + threadIdx.x;
+          if (i < n) body(i);
+        }
+    """))
+    app = _src("""
+        #include <hip/hip_runtime.h>
+        #include "forall.h"
+        void run(int *a, int n) {
+          forall<<<1, 64>>>(n, [=] __device__ (int i) {
+        #ifdef __HIP_DEVICE_COMPILE__
+            a[i] = 1;
+        #endif
+          });
+        }
+    """).replace("\n", "\r\n")
+    (tmp_path / "app.hip").write_bytes(app.encode())
+    module, = _compile(tmp_path, "app.hip", "-O0")
+    unit, = compile_units(module)
+    prog = _program_with_views(module, [unit])
+    prog.functions = {key: fn for key, fn in prog.functions.items()
+                      if not _is_runtime_function(fn.name, fn.file)}
+    header = str(tmp_path / "forall.h")
+    (tmp_path / "mneme-copy.h").write_text("// Mneme's copy\n")
+    prog.source_copies = {header: str(tmp_path / "mneme-copy.h")}
+    host = _Function("host", "main", "main", "main", str(tmp_path / "main.cpp"), 1)
+    prog.functions[("host", "main")] = host
+    prog.run = {"executable": "app", "arguments": []}
+    prog.run_dir, prog.gpu_arch, prog.launch_paths = str(tmp_path), "gfx942", []
+    prog.edges, prog.runtime = {}, set()
+    _write_program(prog, str(tmp_path / "db"))
+
+    def file_dir(name):
+        files = tmp_path / "db" / "files" / name
+        return json.loads((files / "file.json").read_text()), files
+
+    info, files = file_dir("app.hip")
+    assert info == {"path": unit.file, "source_copied": "export"}
+    assert (files / "source.hip").read_bytes() == app.encode()
+    lam = next(fn for fn in prog.functions.values() if fn.display_name == "operator()")
+    assert (tmp_path / "db" / lam.path / "source.hip").exists()
+    info, files = file_dir("forall.h")
+    assert info == {"path": header, "source_copied": "record"}
+    assert (files / "source.h").read_text() == "// Mneme's copy\n"
+    info, files = file_dir("main.cpp")
+    assert info == {"path": host.file}
+    assert sorted(p.name for p in files.iterdir()) == ["file.json", "main"]
 
 
 @needs_clang
