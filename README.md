@@ -29,7 +29,11 @@ to a kernel launch), device edges are *static* (from the recorded IR).
    `stacks/launches.<pid>.json` at exit.
 2. **`mneme record --copy-source`** runs in the same process and records each
    kernel: its LLVM IR, launch instances, memory snapshots, the source file and
-   line range that define it, and a copy of that source file.
+   line range that define it, a copy of that source file, and how many times
+   the kernel was launched and for how long. `findingmnemo record` sets
+   `MNEME_KERNEL_TIMING=profiler` for the GPU durations unless it is already
+   set; set it to `off` to record under another profiler such as `rocprofv3`,
+   which Mneme cannot share the vendor profiler with.
 3. **`findingmnemo export`** symbolizes the stacks with `llvm-symbolizer`,
    parses the recorded IR (functions, calls, loops via `opt print<loops>`,
    basic blocks with source lines), reruns each recorded compile unit's
@@ -167,6 +171,7 @@ Every function directory has a `function.json`:
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
 | `isa_instructions`, `static_hash`, `mneme_record` | kernels only |
+| `launch_count`, `gpu_time_ns` | kernels Mneme recorded: how many times the kernel was launched during the run and the summed GPU duration of those launches in nanoseconds, from Mneme's `TotalLaunches` and `TotalTimeNs` |
 
 Host call edges are *dynamic* (observed on the way to a kernel launch);
 device call edges are *static* (from the recorded IR). `at` paths are relative

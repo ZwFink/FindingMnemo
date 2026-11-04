@@ -3,7 +3,8 @@ import hashlib
 from mneme.recorded_execution import RecordedExecution
 
 from findingmnemo.export import (_assign_paths, _Function, _body, _dir_name, _is_constructor,
-                                 _is_runtime_function, _lambda_lines, _recorded_copy, _short_name)
+                                 _is_runtime_function, _lambda_lines, _launch_totals, _recorded_copy,
+                                 _short_name)
 from findingmnemo.ir import BasicBlock, Function, Loop
 
 
@@ -140,3 +141,11 @@ def test_recorded_copy_is_only_mnemes_copy(tmp_path):
     assert _recorded_copy(execution(str(copy))) is None
     copy.write_text(text)
     assert _recorded_copy(execution(str(copy))) == str(copy)
+
+
+def test_launch_totals_come_from_the_mneme_record():
+    assert _launch_totals({"TotalLaunches": 7, "TotalTimeNs": 31160, "TimingSource": "profiler"}) \
+        == {"launch_count": 7, "gpu_time_ns": 31160}
+    # Recorded without MNEME_KERNEL_TIMING, or by a Mneme that did not count launches.
+    assert _launch_totals({"TotalLaunches": 7}) == {"launch_count": 7}
+    assert _launch_totals({}) == {}

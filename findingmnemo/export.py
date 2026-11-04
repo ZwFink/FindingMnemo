@@ -535,6 +535,18 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
     return view.text(fn.line, end), {"source_arch": unit.arch}
 
 
+def _launch_totals(record: dict) -> dict:
+    """The kernel's launch count and summed GPU time over the whole run, from
+    the Mneme record. Older Mneme versions write neither, and Mneme writes the
+    time only when recording with MNEME_KERNEL_TIMING."""
+    totals = {}
+    if "TotalLaunches" in record:
+        totals["launch_count"] = record["TotalLaunches"]
+    if "TotalTimeNs" in record:
+        totals["gpu_time_ns"] = record["TotalTimeNs"]
+    return totals
+
+
 def _write_function(prog: _Program, fn: _Function, source: Optional[str], source_info: dict,
                     out: str) -> None:
     fn_dir = os.path.join(out, fn.path)
@@ -556,6 +568,7 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
         if k.record:
             data["static_hash"] = str(k.record["StaticHash"])
             data["mneme_record"] = k.record_path
+            data.update(_launch_totals(k.record))
 
     out_edges = [e for e in prog.edges.values() if e.caller is fn]
     in_edges = [e for e in prog.edges.values() if e.callee is fn]
