@@ -226,7 +226,10 @@ __device__ double helper(double a) {          __device__ double helper(double a)
 ```
 
 The function ends at the brace that closes it, counting only the code the
-device compiled, with macros expanded by a second, ordinary `-E`. Before
+device compiled, with macros expanded by a second, ordinary `-E`. A function
+in a macro argument, such as the lambda body in
+`MFEM_FORALL_2D(e, NE, Q1D, Q1D, 1, { ... });`, ends with the macro call, at
+its closing `)`. Before
 preprocessing, the export checks each file against the MD5 in the debug info
 and fails if one changed since the build. It needs the recorded compiler,
 headers and compile directory at their recorded paths.
@@ -309,6 +312,15 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   (skipping comments, literals, default-argument initializers and member
   initializers). If either step fails, or the end would come before the
   function's last line of code, the export fails.
+- **Code in a macro argument has the macro call's line.** Clang gives
+  everything in a macro's expansion, arguments included, the line of the
+  macro's name, so a device function written in a macro argument, such as
+  the lambda body passed to `MFEM_FORALL_2D`, has its line, blocks, loops and
+  calls all on the macro call's line. Its `source.<ext>` holds the whole macro
+  call, but its code cannot be mapped to lines within it, and two lambdas in
+  one macro call cannot be told apart, so the export fails on them. Fixing
+  that needs either a compiler change that keeps the lines where the code is
+  written, or source written without the macro (for example `mfem::forall`).
 - **Device views need the build environment.** Preprocessing again needs the
   compiler, headers and compile directory at their recorded paths, and
   environment variables that affected the build are not recorded. The check
