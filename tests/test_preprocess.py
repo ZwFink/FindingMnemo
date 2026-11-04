@@ -7,8 +7,8 @@ import textwrap
 import pytest
 
 from findingmnemo import ir
-from findingmnemo.export import (_Function, _function_source, _is_runtime_function, _Program,
-                                 _write_program)
+from findingmnemo.export import (_demangle, _Function, _function_source, _is_runtime_function,
+                                 _Program, _write_program)
 from findingmnemo.preprocess import (CompileUnit, PreprocessError, build_view, compile_units,
                                      function_column, function_end, parse_output, preprocess, preprocess_argv,
                                      split_command)
@@ -775,6 +775,27 @@ def test_export_of_a_lambda_in_a_macro_argument(tmp_path):
     source, _ = _function_source(prog, fn)
     assert fn.end_line == lines.index("  });") + 1
     assert source == "\n".join(lines[call - 1:fn.end_line]) + "\n"
+
+
+@needs_clang
+def test_export_of_a_lambda_with_line_tables_only(tmp_path):
+    # The IR Mneme records keeps only line tables, which have no closure
+    # class; the demangled name shows the lambda.
+    (tmp_path / "mass.hip").write_text(FORALL_MACRO)
+    module, = _compile(tmp_path, "mass.hip", "-O0", "-gline-tables-only")
+    assert "emissionKind: LineTablesOnly" in module
+    unit, views = _views(module)
+    lines = FORALL_MACRO.splitlines()
+    body = next(f for f in ir.parse_module(module).values() if f.display_name == "operator()")
+    assert not body.is_lambda
+    demangled = _demangle([body.name], os.path.dirname(CLANG))[body.name]
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    fn = _Function("device", body.name, demangled, None, unit.file, body.line)
+    fn.ir_fn, fn.unit = body, unit
+    source, _ = _function_source(prog, fn)
+    assert fn.end_line == lines.index("  });") + 1
+    assert source == "\n".join(lines[body.line - 1:fn.end_line]) + "\n"
 
 
 @needs_clang

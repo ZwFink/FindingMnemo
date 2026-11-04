@@ -54,7 +54,7 @@ class Function:
     # the class does not declare.
     artificial: bool = False
     # Whether the function is the body of a lambda, which has no name to find
-    # in the source.
+    # in the source. Only full debug info says so; line tables do not.
     is_lambda: bool = False
     blocks: List[BasicBlock] = field(default_factory=list)
     loops: List[Loop] = field(default_factory=list)

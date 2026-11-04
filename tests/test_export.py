@@ -90,6 +90,8 @@ def test_runtime_functions_include_clang_headers():
                                 "/usr/lib/llvm-19/lib/clang/19.1.0/include/__clang_cuda_math.h")
     assert _is_runtime_function("f", "/opt/rocm/include/hip/amd_detail/amd_device_functions.h")
     assert _is_runtime_function("__ocml_fabs_f64", None)
+    # OCML's internal helpers, which the device libraries build without debug info.
+    assert _is_runtime_function("__ocmlpriv_epln_f64", None)
     assert not _is_runtime_function("_Z6kernelPd", "/src/app/kernel.hip")
     assert not _is_runtime_function("_Z1fv", "/src/clang/tools/include/f.h")
     assert not _is_runtime_function("_Z1fv", None)

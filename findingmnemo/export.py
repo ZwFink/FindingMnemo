@@ -75,7 +75,7 @@ class _Edge:
     launches: Optional[int]
 
 
-_RUNTIME_PREFIXES = ("__ockl_", "__ocml_", "__hip_", "_ZN24__hip_builtin", "_ZN25__hip_builtin",
+_RUNTIME_PREFIXES = ("__ockl_", "__ocml_", "__ocmlpriv_", "__hip_", "_ZN24__hip_builtin", "_ZN25__hip_builtin",
                      "_ZL21__hip_", "_ZL22__hip_")
 # Clang's own headers, such as __clang_hip_math.h, in <llvm>/lib/clang/19/include.
 _COMPILER_HEADERS = re.compile(r"/clang/\d[^/]*/include/")
@@ -502,9 +502,12 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
         raise SystemExit(f"findingmnemo export: the debug info has no source location for "
                          f"{fn.display_name}")
     unit, view = prog.view(fn)
-    column = view.function_column(fn.line, fn.ir_fn.display_name or "", fn.ir_fn.is_lambda)
+    # The IR Mneme records keeps only line tables, even from a -g build, so it
+    # has no closure class to tell a lambda by, but the demangled name does.
+    is_lambda = fn.ir_fn.is_lambda or bool(_LAMBDA_CALL.search(_short_name(fn.display_name)))
+    column = view.function_column(fn.line, fn.ir_fn.display_name or "", is_lambda)
     if column is None:
-        what = "exactly one lambda" if fn.ir_fn.is_lambda else "its name"
+        what = "exactly one lambda" if is_lambda else "its name"
         raise SystemExit(f"findingmnemo export: cannot find where {fn.display_name} begins: "
                          f"line {fn.line} of {fn.file} does not have {what}")
     end = view.function_end(fn.line, _last_line(fn.ir_fn), column)
