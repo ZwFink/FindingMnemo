@@ -248,11 +248,22 @@ class FileView:
             out.append(text)
         return "".join(out)
 
-    def function_column(self, start: int, name: str, is_lambda: bool) -> Optional[int]:
-        """Where on line ``start`` the function begins, as in the code the
-        device compiled; see ``function_column``."""
-        text = self.code.get(start)
-        return function_column(text, name, is_lambda) if text else None
+    def function_start(self, start: int, name: str,
+                       is_lambda: bool) -> Optional[Tuple[int, int]]:
+        """The line and column where the function the debug info starts on
+        line ``start`` begins, as in the code the device compiled; see
+        ``function_column``. When a macro call that spans lines comes before
+        the name, as in ``__launch_bounds__(\\n  256) void k(``, the
+        preprocessor put the name on the line of the macro's."""
+        line = start
+        if not self.code.get(line):
+            line -= 1
+            while line > 0 and not self.code.get(line):
+                line -= 1
+            if line == 0 or (self._macro_call_end(line) or 0) < start:
+                return None
+        column = function_column(self.code[line], name, is_lambda)
+        return None if column is None else (line, column)
 
     def function_end(self, start: int, last_code_line: Optional[int] = None,
                      column: int = 0) -> Optional[int]:

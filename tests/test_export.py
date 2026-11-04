@@ -2,8 +2,8 @@ import hashlib
 
 from mneme.recorded_execution import RecordedExecution
 
-from findingmnemo.export import (_assign_paths, _Function, _body, _dir_name, _is_runtime_function,
-                                 _lambda_lines, _recorded_copy, _short_name)
+from findingmnemo.export import (_assign_paths, _Function, _body, _dir_name, _is_constructor,
+                                 _is_runtime_function, _lambda_lines, _recorded_copy, _short_name)
 from findingmnemo.ir import BasicBlock, Function, Loop
 
 
@@ -52,6 +52,16 @@ def test_short_name_drops_parameters_and_return_type():
 
 def _fn(kind, display, debug=None, file="app.hip", line=None):
     return _Function(kind, display, display, debug, file, line)
+
+
+def test_is_constructor():
+    assert _is_constructor("RAJA::expt::ValLoc<double, long>::ValLoc(double)")
+    assert _is_constructor("Box::Box()")
+    assert _is_constructor("ns::Box<int>::Box<float>(float) const")
+    assert not _is_constructor("ns::Box<int>::~Box()")
+    assert not _is_constructor("ns::f(int)")
+    assert not _is_constructor("f(int)")
+    assert not _is_constructor("main::'lambda'(int)::operator()(int) const")
 
 
 def test_dir_name_names_lambdas_by_line():

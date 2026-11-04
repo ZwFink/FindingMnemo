@@ -51,7 +51,7 @@ class Function:
     # Metadata id of the DICompileUnit the function was compiled in.
     unit_id: Optional[int] = None
     # Whether the compiler wrote the function, as it does a copy constructor
-    # the class does not declare.
+    # the class does not declare, or the module has debug info but not for it.
     artificial: bool = False
     # Whether the function is the body of a lambda, which has no name to find
     # in the source. Only full debug info says so; line tables do not.
@@ -150,6 +150,7 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
     """Parse function definitions, their blocks, calls and source lines."""
     lines = ir_text.splitlines()
     debug = _DebugInfo(_parse_metadata(lines))
+    has_debug_info = any(kind == "DICompileUnit" for kind, _ in debug.nodes.values())
     functions: Dict[str, Function] = {}
     current: Optional[Function] = None
     block: Optional[BasicBlock] = None
@@ -165,6 +166,11 @@ def parse_module(ir_text: str) -> Dict[str, Function]:
             dbg = re.search(r"!dbg !(\d+)", line)
             if dbg:
                 debug.describe(current, int(dbg.group(1)))
+            elif has_debug_info:
+                # Made by the compiler or linked in from code built without
+                # debug info, such as __get_scratch_lds in RAJAPerf's
+                # reduction kernels.
+                current.artificial = True
             # LLVM omits the label of an unnamed entry block.
             block = BasicBlock("entry")
             continue

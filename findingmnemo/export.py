@@ -313,6 +313,18 @@ def _short_name(name: str) -> str:
     return name[start:] or name
 
 
+def _is_constructor(name: str) -> bool:
+    """Whether a demangled name, such as ns::Box<int>::Box(int), is a constructor's."""
+    short = _short_name(name)
+    depths = _depths(short)
+    seps = [i for i in range(len(short) - 1) if short.startswith("::", i) and depths[i] == 0]
+    if not seps:
+        return False
+    own = short[seps[-1] + 2:].split("<")[0]
+    scope = short[seps[-2] + 2 if len(seps) > 1 else 0:seps[-1]].split("<")[0]
+    return bool(own) and own == scope
+
+
 def _abbreviate_templates(name: str) -> str:
     """Replace template arguments with the lambdas among them, or "..."."""
     depths = _depths(name)
@@ -505,12 +517,17 @@ def _function_source(prog: _Program, fn: _Function) -> Tuple[Optional[str], dict
     # The IR Mneme records keeps only line tables, even from a -g build, so it
     # has no closure class to tell a lambda by, but the demangled name does.
     is_lambda = fn.ir_fn.is_lambda or bool(_LAMBDA_CALL.search(_short_name(fn.display_name)))
-    column = view.function_column(fn.line, fn.ir_fn.display_name or "", is_lambda)
-    if column is None:
+    start = view.function_start(fn.line, fn.ir_fn.display_name or "", is_lambda)
+    if start is None:
         what = "exactly one lambda" if is_lambda else "its name"
         raise SystemExit(f"findingmnemo export: cannot find where {fn.display_name} begins: "
                          f"line {fn.line} of {fn.file} does not have {what}")
-    end = view.function_end(fn.line, _last_line(fn.ir_fn), column)
+    line, column = start
+    # A constructor also runs the default member initializers, whose code has
+    # the lines of the class's members, so code after its closing brace does
+    # not mean the end is wrong.
+    last = None if _is_constructor(fn.display_name) else _last_line(fn.ir_fn)
+    end = view.function_end(line, last, column)
     if not end:
         raise SystemExit(f"findingmnemo export: cannot find the closing brace of "
                          f"{fn.display_name}, which starts on line {fn.line} of {fn.file}")
