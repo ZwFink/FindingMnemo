@@ -42,6 +42,20 @@ def test_parse_module_functions_blocks_and_calls():
     assert helper.text == 'define internal fastcc i32 @"helper.fn"(i32 %v) !dbg !6 {\nentry:\n  ret i32 %v\n}\n'
 
 
+def test_function_without_debug_info_in_a_module_with_it_is_artificial():
+    helper = """
+define internal fastcc ptr addrspace(3) @__get_scratch_lds() {
+  ret ptr addrspace(3) @__scratch_lds
+}
+"""
+    unit = '!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1)\n'
+    functions = parse_module(MODULE + helper + unit)
+    assert functions["__get_scratch_lds"].artificial
+    assert not functions["kern"].artificial
+    # Without any compile unit the build lacked -g, which the export reports.
+    assert not parse_module(MODULE + helper)["__get_scratch_lds"].artificial
+
+
 def test_compile_unit_files():
     module = MODULE + """
 !0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !2, producer: "clang")

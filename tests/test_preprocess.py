@@ -7,8 +7,8 @@ import textwrap
 import pytest
 
 from findingmnemo import ir
-from findingmnemo.export import (_Function, _function_source, _is_runtime_function, _Program,
-                                 _write_program)
+from findingmnemo.export import (_demangle, _Function, _function_source, _is_runtime_function,
+                                 _Program, _write_program)
 from findingmnemo.preprocess import (CompileUnit, PreprocessError, build_view, compile_units,
                                      function_column, function_end, parse_output, preprocess, preprocess_argv,
                                      split_command)
@@ -297,7 +297,7 @@ def test_function_in_a_macro_argument_ends_with_the_macro_call():
         3: "  forall(n, [=] __attribute__((device)) (int e) {{ for (int q = 0; q < 4; ++q) "
            "{ y[e] += q; } }});",
         12: "}"}))
-    assert view.function_column(3, "operator()", True) == 12
+    assert view.function_start(3, "operator()", True) == (3, 12)
     assert view.function_end(3, 3, 12) == 9
     assert view.text(3, 9) == "".join(source.splitlines(True)[2:9])
     # A macro call that expands to nothing does not end mass early.
@@ -330,8 +330,8 @@ def test_macro_call_after_an_open_bracket_ends_where_the_call_closes():
         1: "if (x) { use(forall(n, [=] (int e) {{ y[e] += 1.0; }}),",
         5: "    n);",
         6: "}"}))
-    column = view.function_column(1, "operator()", True)
-    assert view.function_end(1, 1, column) == 4
+    line, column = view.function_start(1, "operator()", True)
+    assert view.function_end(line, 1, column) == 4
 
 
 def test_macro_call_that_does_not_close_has_no_end():
@@ -711,8 +711,8 @@ def test_device_view_of_lambdas_and_macro_made_functions(tmp_path):
         if os.path.normpath(fn.file or "") != unit.file or not fn.line:
             continue
         last = max(ln for b in fn.blocks for f, ln in b.lines if os.path.normpath(f) == unit.file)
-        column = view.function_column(fn.line, fn.display_name, fn.is_lambda)
-        ends[fn.display_name, fn.line] = view.function_end(fn.line, last, column)
+        line, column = view.function_start(fn.line, fn.display_name, fn.is_lambda)
+        ends[fn.display_name, fn.line] = view.function_end(line, last, column)
     first = lines.index("  forall<<<1, 64>>>(n, [=] __device__ (int i) {") + 1
     second = lines.index("      [=] __device__ (int i) -> double {") + 1
     assert ends[("operator()", first)] == lines.index("  });") + 1
@@ -775,6 +775,93 @@ def test_export_of_a_lambda_in_a_macro_argument(tmp_path):
     source, _ = _function_source(prog, fn)
     assert fn.end_line == lines.index("  });") + 1
     assert source == "\n".join(lines[call - 1:fn.end_line]) + "\n"
+
+
+@needs_clang
+def test_export_of_a_lambda_with_line_tables_only(tmp_path):
+    # The IR Mneme records keeps only line tables, which have no closure
+    # class; the demangled name shows the lambda.
+    (tmp_path / "mass.hip").write_text(FORALL_MACRO)
+    module, = _compile(tmp_path, "mass.hip", "-O0", "-gline-tables-only")
+    assert "emissionKind: LineTablesOnly" in module
+    unit, views = _views(module)
+    lines = FORALL_MACRO.splitlines()
+    body = next(f for f in ir.parse_module(module).values() if f.display_name == "operator()")
+    assert not body.is_lambda
+    demangled = _demangle([body.name], os.path.dirname(CLANG))[body.name]
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    fn = _Function("device", body.name, demangled, None, unit.file, body.line)
+    fn.ir_fn, fn.unit = body, unit
+    source, _ = _function_source(prog, fn)
+    assert fn.end_line == lines.index("  });") + 1
+    assert source == "\n".join(lines[body.line - 1:fn.end_line]) + "\n"
+
+
+# rocPRIM's kernels, whose name follows a __launch_bounds__ call over several lines.
+LAUNCH_BOUNDS = _src("""
+    #include <hip/hip_runtime.h>
+    __global__ __launch_bounds__(
+        256) void fill(int *a,
+                       int n)
+    {
+      a[0] = n;
+    }
+""")
+
+
+@needs_clang
+def test_export_of_a_kernel_named_after_a_macro_call_over_several_lines(tmp_path):
+    (tmp_path / "fill.hip").write_text(LAUNCH_BOUNDS)
+    module, = _compile(tmp_path, "fill.hip", "-O0")
+    unit, views = _views(module)
+    lines = LAUNCH_BOUNDS.splitlines()
+    kernel = next(f for f in ir.parse_module(module).values() if f.display_name == "fill")
+    named = lines.index("    256) void fill(int *a,") + 1
+    assert kernel.line == named
+    view = views[unit.file]
+    assert not view.code.get(named)
+    assert view.function_start(named, "fill", False)[0] == named - 1
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    fn = _Function("kernel", kernel.name, "fill(int*, int)", None, unit.file, kernel.line)
+    fn.ir_fn, fn.unit = kernel, unit
+    source, _ = _function_source(prog, fn)
+    assert fn.end_line == len(lines)
+    assert source == "\n".join(lines[named - 1:]) + "\n"
+
+
+# RAJA's ValLoc, whose constructor also runs the initializer of loc.
+MEMBER_INITIALIZER = _src("""
+    #include <hip/hip_runtime.h>
+    struct ValLoc {
+      __device__ explicit ValLoc(double v) : val(v) {}
+      double val;
+      long loc = -1;
+    };
+    __global__ void k(double *p) {
+      ValLoc v(p[0]);
+      p[1] = v.loc;
+    }
+""")
+
+
+@needs_clang
+def test_export_of_a_constructor_that_runs_a_member_initializer(tmp_path):
+    (tmp_path / "valloc.hip").write_text(MEMBER_INITIALIZER)
+    module, = _compile(tmp_path, "valloc.hip", "-O0")
+    unit, views = _views(module)
+    lines = MEMBER_INITIALIZER.splitlines()
+    ctor = next(f for f in ir.parse_module(module).values() if f.display_name == "ValLoc")
+    member = lines.index("  long loc = -1;") + 1
+    assert member in {ln for b in ctor.blocks for _, ln in b.lines}
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    demangled = _demangle([ctor.name], os.path.dirname(CLANG))[ctor.name]
+    fn = _Function("device", ctor.name, demangled, None, unit.file, ctor.line)
+    fn.ir_fn, fn.unit = ctor, unit
+    source, _ = _function_source(prog, fn)
+    assert source == lines[ctor.line - 1] + "\n"
 
 
 @needs_clang
@@ -871,7 +958,9 @@ def test_compiler_generated_functions_have_no_source(tmp_path):
     prog = _program_with_views(module, [unit])
     functions = {fn.name: fn for fn in prog.functions.values()}
     copies = ["_ZN9ReduceSumI7hip_poliEC2ERKS1_", "_ZN6HolderIiEC2ERKS0_"]
-    assert sorted(name for name, fn in functions.items() if fn.ir_fn.artificial) == sorted(copies)
+    # The device libraries' functions, linked in without debug info, are too.
+    assert sorted(name for name, fn in functions.items() if fn.ir_fn.artificial
+                  and not _is_runtime_function(name, fn.file)) == sorted(copies)
     for name in copies:
         assert _function_source(prog, functions[name]) == (None, {"compiler_generated": True})
         assert functions[name].end_line is None
