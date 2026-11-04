@@ -1,5 +1,9 @@
-from findingmnemo.export import (_Function, _body, _dir_name, _is_runtime_function, _lambda_lines,
-                                 _short_name)
+import hashlib
+
+from mneme.recorded_execution import RecordedExecution
+
+from findingmnemo.export import (_assign_paths, _Function, _body, _dir_name, _is_runtime_function,
+                                 _lambda_lines, _recorded_copy, _short_name)
 from findingmnemo.ir import BasicBlock, Function, Loop
 
 
@@ -89,3 +93,38 @@ def test_runtime_functions_include_clang_headers():
     assert not _is_runtime_function("_Z6kernelPd", "/src/app/kernel.hip")
     assert not _is_runtime_function("_Z1fv", "/src/clang/tools/include/f.h")
     assert not _is_runtime_function("_Z1fv", None)
+
+
+def test_function_paths_leave_room_for_the_files_own_entries():
+    class Prog:
+        functions = {("host", name): _fn("host", name, file="/src/app.hip", line=n)
+                     for n, name in enumerate(["source::hip(int)", "file::json()", "run()"], 1)}
+    file_dirs = _assign_paths(Prog())
+    assert file_dirs == {"/src/app.hip": "files/app.hip"}
+    paths = sorted(fn.path for fn in Prog.functions.values())
+    assert "files/app.hip/source.hip" not in paths
+    assert "files/app.hip/file.json" not in paths
+    assert "files/app.hip/run" in paths
+    assert len(set(paths)) == 3
+
+
+def test_recorded_copy_is_only_mnemes_copy(tmp_path):
+    original, copy = tmp_path / "app.hip", tmp_path / "RecordedSource_app.hip"
+    original.write_text("__global__ void k() {}\n")
+    text = original.read_text()
+    md5 = hashlib.md5(text.encode()).hexdigest()
+
+    def execution(source_copy):
+        # Only the source fields; kernel_source() reads nothing else.
+        e = RecordedExecution.__new__(RecordedExecution)
+        e.source_file, e.source_copy, e.source_md5 = str(original), source_copy, md5
+        e.source_line = e.source_end_line = 1
+        return e
+
+    # Recorded without --copy-source: kernel_source() reads the original.
+    assert execution(None).kernel_source().file == str(original)
+    assert _recorded_copy(execution(None)) is None
+    # The copy was deleted from the record directory.
+    assert _recorded_copy(execution(str(copy))) is None
+    copy.write_text(text)
+    assert _recorded_copy(execution(str(copy))) == str(copy)
