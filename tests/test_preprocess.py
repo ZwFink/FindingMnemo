@@ -136,6 +136,21 @@ def test_parse_output_follows_markers():
     assert files["<built-in>"] == {1: "#define __clang__ 1"}
 
 
+def test_parse_output_keeps_a_line_split_by_a_pragma():
+    # Clang prints a _Pragma in a macro's arguments on its own line and then
+    # returns to the line of the macro call.
+    files = parse_output(_src("""
+        # 1 "k.hip"
+          forall(n, [=] (int e) {{
+        # 1 "k.hip"
+        #pragma unroll
+        # 1 "k.hip"
+          for (int q = 0; q < 4; ++q) { y[e] += q; } }});
+    """), "/src")
+    assert files["/src/k.hip"] == {
+        1: "  forall(n, [=] (int e) {{   for (int q = 0; q < 4; ++q) { y[e] += q; } }});"}
+
+
 def _view(source: str, printed: str, expanded: str = None, path="/src/k.hip"):
     return build_view(path, source, parse_output(printed, "/src")[path],
                       parse_output(expanded or printed, "/src")[path])
@@ -297,6 +312,33 @@ def test_function_in_a_macro_argument_ends_with_the_macro_call():
     source = "f(n, [=] (int i) { y[i] = 0; }, g(a,\n                                    b));\n"
     view = _view(source, _marked({1: source.split("\n")[0], 2: source.split("\n")[1]}))
     assert view.function_end(1, 1, 5) == 1
+
+
+def test_macro_call_after_an_open_bracket_ends_where_the_call_closes():
+    source = _src("""
+        if (x) { use(FORALL(e, n,
+        {
+          y[e] += 1.0;
+        }),
+            n);
+        }
+    """)
+    printed = {n: text.rstrip("\n") for n, text in enumerate(source.splitlines(True), 1)}
+    view = _view(source, _marked(printed), _marked({
+        1: "if (x) { use(forall(n, [=] (int e) {{ y[e] += 1.0; }}),",
+        5: "    n);",
+        6: "}"}))
+    column = view.function_column(1, "operator()", True)
+    assert view.function_end(1, 1, column) == 4
+
+
+def test_macro_call_that_does_not_close_has_no_end():
+    # As when the file does not match the code the view was made from.
+    source = "  FORALL(e, n,\n  {\n    y[e] = 0;\n  };\n}\n"
+    printed = {n: text for n, text in enumerate(source.split("\n")[:5], 1)}
+    view = _view(source, _marked(printed), _marked({
+        1: "  forall(n, [=] (int e) {{ y[e] = 0; }});", 5: "}"}))
+    assert view.function_end(1, 1, 12) is None
 
 
 # Function ends
@@ -731,6 +773,26 @@ def test_export_of_a_lambda_in_a_macro_argument(tmp_path):
     source, _ = _function_source(prog, fn)
     assert fn.end_line == lines.index("  });") + 1
     assert source == "\n".join(lines[call - 1:fn.end_line]) + "\n"
+
+
+@needs_clang
+def test_export_of_a_lambda_in_a_macro_argument_with_a_pragma(tmp_path):
+    # MFEM_UNROLL is a _Pragma, which clang prints on a line of its own.
+    text = FORALL_MACRO.replace("#define MFEM_FORALL_2D",
+                                '#define MFEM_UNROLL(N) _Pragma("unroll")\n#define MFEM_FORALL_2D')
+    text = text.replace("    for (int q", "    MFEM_UNROLL(4)\n    for (int q")
+    (tmp_path / "mass.hip").write_text(text)
+    module, = _compile(tmp_path, "mass.hip", "-O0")
+    unit, views = _views(module)
+    lines = text.splitlines()
+    body = next(f for f in ir.parse_module(module).values() if f.is_lambda)
+    prog = _Program.__new__(_Program)
+    prog.unit_views = {unit.key: views}
+    fn = _Function("device", body.name, body.display_name, "lambda", unit.file, body.line)
+    fn.ir_fn, fn.unit = body, unit
+    source, _ = _function_source(prog, fn)
+    assert fn.end_line == lines.index("  });") + 1
+    assert "MFEM_UNROLL(4)" in source
 
 
 @needs_clang
