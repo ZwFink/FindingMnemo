@@ -2,7 +2,7 @@
   "kind": "device",
   "name": "fast_forward_LCG(unsigned long, unsigned long)",
   "symbol": "_Z16fast_forward_LCGmm",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
+  "file": "files/Simulation.cpp",
   "line": 342,
   "end_line": 368,
   "source_arch": "gfx942",

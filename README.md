@@ -82,28 +82,30 @@ findingmnemo export runs/app-small runs/app-large -o app-db
 
 ### Copying a database
 
-Paths inside a database are relative, but it refers to the files around it by
-absolute path: each program's run directory and Mneme recordings
-(`run_dir`, `mneme_record`, and the `prologue`/`epilogue` snapshots in
-`instances.json`), the executable, and the source files. `findingmnemo copy`
-copies a database and rewrites those paths, for example to share it:
+Paths in a database are relative to it, so it can be copied or moved as is.
+Source files are named by their directory in the database (`files/<file>`),
+which holds a copy of the file; Mneme records and snapshots (`mneme_record`,
+and `prologue`/`epilogue` in `instances.json`) are relative to the program's
+`run_dir`. The only absolute paths are where things came from: `run_dir` and
+`executable` in `program.json`, and `original_path` in each `file.json`.
+
+`run_dir` is the Mneme recording and launch stacks, which stay where they were
+recorded. To take them along, for example to share the database:
 
 ```bash
-findingmnemo copy app-db /shared/app-db --recordings \
-    --map /my/scratch/app/src=/shared/app-src
+findingmnemo copy app-db /shared/app-db --recordings
 ```
 
 `--recordings` copies each program's run directory (`run.json`, `stacks/`,
-`record-db/`) into `<program>/recording/` of the new database, so the instances
-stay replayable. Other files in the run directory, such as the application's
-inputs, are not copied and keep their original paths. Recordings can be large
-(tens of GB for a run that snapshots a big memory pool). Without it, the copy
-still points to the original recordings. `--map OLD=NEW` rewrites paths that
-start with `OLD`, for files copied separately, such as the application's
-source tree. A path through a symlink, such as `/usr/workspace` on LC, also
-matches the path it resolves to. The original database is not changed. Exporting a copied recording again still needs the application's
-source and build directories, and its compiler, at their recorded paths,
-because export reruns the compile commands recorded in the device code.
+`record-db/`) into `<program>/recording/` of the new database and sets
+`run_dir` to `recording`; a relative `run_dir` is relative to the program
+directory. The instances then stay replayable from the copy alone. Other files
+in the run directory, such as the application's inputs, are not copied.
+Recordings can be large (tens of GB for a run that snapshots a big memory
+pool). The original database is not changed. Exporting a copied recording
+again still needs the application's source and build directories, and its
+compiler, at their recorded paths, because export reruns the compile commands
+recorded in the device code.
 
 ## Examples
 
@@ -114,9 +116,8 @@ because export reruns the compile commands recorded in the device code.
   and records it with `-m event -G unionized`.
 - `examples/xsbench-db/` is the database that script produced for the `small`
   size on Tuolumne (MI300A). It includes `Simulation.cpp`, which
-  Mneme copied when it recorded the kernel. Its absolute paths (sources, Mneme
-  records, snapshots) point to where it was recorded; the Mneme recordings
-  themselves are not in the repository.
+  Mneme copied when it recorded the kernel. Its `run_dir` points to where it
+  was recorded; the Mneme recordings themselves are not in the repository.
 
 ## Database layout
 
@@ -133,10 +134,11 @@ xsbench-db/
 │   ├── launches.json           every launch: kernel, host call path, grid, block, count
 │   ├── files/                  application source files
 │   │   ├── Main.cpp/
-│   │   │   ├── file.json       full path of the source file
+│   │   │   ├── file.json       original path, "source_copied": "export-unchecked"
+│   │   │   ├── source.cpp      the file as the export read it
 │   │   │   └── main/function.json
 │   │   └── Simulation.cpp/
-│   │       ├── file.json       full path, "source_copied": "record"
+│   │       ├── file.json       original path, "source_copied": "record"
 │   │       ├── source.cpp      the file as Mneme recorded it
 │   │       ├── run_event_based_simulation_baseline/function.json
 │   │       ├── xs_lookup_kernel_baseline/
@@ -150,13 +152,19 @@ xsbench-db/
 │   │       └── pick_mat/{function.json, source.cpp, ir.ll}
 ```
 
-Every file directory has a `file.json` with the file's full `path`. Files with
-kernels or device functions Mneme recorded also have the whole file as
-`source.<ext>`, and `source_copied` says where it came from: `record` for a
-file Mneme copied when it recorded a kernel defined there, `export` for one the
-export read from its original path, such as an application file whose device
-lambdas a RAJA or MFEM kernel template in a library header runs. Files with
-only host code have no `source.<ext>`.
+Every source file the database names (where functions are defined, and the
+files of call sites and launch call paths) has a directory under `files/`, and
+`file`, in `function.json`, call sites and `launches.json`, is that directory,
+relative to the program directory. Its `file.json` has the file's
+`original_path`, and the whole file is in `source.<ext>`, with `source_copied`
+saying where it came from: `record` for a file Mneme copied when it recorded a
+kernel defined there, `export` for one the export read from its original path
+and checked against the device compile (see below), such as an application
+file whose device lambdas a RAJA or MFEM kernel template in a library header
+runs, and `export-unchecked` for one read from its original path with nothing
+to check it against, such as a file with only host code; that one also has
+`"modified_after_recording": true` if the file changed after the recording. A
+file the export could not read has no `source.<ext>` or `source_copied`.
 
 Every function directory has a `function.json`:
 
@@ -164,13 +172,13 @@ Every function directory has a `function.json`:
 | --- | --- |
 | `kind` | `host`, `kernel` or `device` |
 | `name`, `symbol` | demangled name and linkage name (device code only; host frames have no linkage name) |
-| `file`, `line`, `end_line` | definition; `end_line` (the closing brace) for kernels and device functions recorded by Mneme |
+| `file`, `line`, `end_line` | definition: the file's directory, such as `files/app.hip`, and lines; `end_line` (the closing brace) for kernels and device functions recorded by Mneme |
 | `source_arch` | the GPU architecture whose compile `source.<ext>` shows |
 | `compiler_generated` | `true` for device code the compiler wrote, such as a copy constructor the class does not declare; it has no `source.<ext>` or `end_line`, and `line` is where the debug info puts it, a line naming the class |
-| `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, and `launch_count` for host calls seen on the way to a launch |
+| `calls`, `called_by` | call sites: `function`, `at` (its directory), `line`, `file` if the call is in another file, and `launch_count` for host calls seen on the way to a launch |
 | `launches`, `launched_by` | host function ↔ kernel launch sites with `launch_count` |
 | `body` | basic blocks nested in loops, in IR order: `{"block", "instructions", "lines": [first, last], "calls"}` and `{"loop", "depth", "body"}` |
-| `isa_instructions`, `static_hash`, `mneme_record` | kernels only |
+| `isa_instructions`, `static_hash`, `mneme_record` | kernels only; `mneme_record` is relative to the program's `run_dir` |
 | `launch_count`, `gpu_time_ns` | kernels Mneme recorded: how many times the kernel was launched during the run and the summed GPU duration of those launches in nanoseconds, from Mneme's `TotalLaunches` and `TotalTimeNs` |
 
 Host call edges are *dynamic* (observed on the way to a kernel launch);
@@ -289,7 +297,9 @@ jq -r 'select(.body) | "\(.name): depth \([.. | objects | select(.loop) | .depth
 `graph.json` (`{"nodes": [...], "edges": [...]}`) holds the same hierarchy for
 graph tools. Node ids are paths in the database (`#loop:`, `#block:` and
 `#instance:` name the parts of a function), and edge kinds are `contains`,
-`calls`, `launches` and `has_instance`:
+`calls`, `launches` and `has_instance`. A function's `file` and a call edge's
+`call_file` are the id of a `source_file` node, whose `source` is its copy of
+the file:
 
 ```python
 import json, networkx as nx
@@ -326,10 +336,10 @@ G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
   instantiated with an application lambda is filed under the library header
   that defines the kernel template, and its lambda body under the
   application file.
-- **Files with only host code are not copied.** They are referenced by path
-  in `file.json`. Mneme copies the file that defines each kernel it records,
-  and the export writes the other files with device code from their original
-  paths.
+- **Host source is not checked against the build.** A file with only host
+  code is copied from its original path when the database is exported, so it
+  can differ from what was built if it changed since; `file.json` then says
+  `"modified_after_recording": true` (from the file's modification time).
 - **Function ends come from brace matching.** The debug info records where a
   function starts, not where it ends, and only by line. The export finds the
   function on its start line, at its name or, for a lambda, at the `[` of the

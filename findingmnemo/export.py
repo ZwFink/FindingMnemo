@@ -9,6 +9,11 @@ a directory tree that mirrors the program hierarchy, so it can be browsed with
     <db>/<program>/program.json, launches.json
     <db>/<program>/files/<source file>/<function>/function.json, ir.ll, ...
 
+Paths in the database are relative to it. Source files are named by their
+directory (``files/<source file>``), which holds a copy of the file; only
+``file.json`` keeps the file's original path. Mneme records and snapshots are
+relative to the program's ``run_dir``.
+
 HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) and functions from
 clang's own headers (``__clang_hip_math.h``, ...) are left out.
 """
@@ -254,6 +259,14 @@ class _Program:
                              f"not part of its recorded device compile")
         return fn.unit, views[fn.file]
 
+    def file_ref(self, path: Optional[str]) -> Optional[str]:
+        """The file's directory, relative to the program directory."""
+        return self.file_dirs.get(os.path.normpath(path)) if path else None
+
+    def record_ref(self, path: str) -> str:
+        """A path in the recording, relative to the run directory."""
+        return os.path.relpath(path, self.run_dir)
+
     def file_view(self, path: Optional[str]) -> Optional[preprocess.FileView]:
         """A device view of the file, if one was built; it holds the whole file
         as the export read it after checking it against the debug info."""
@@ -398,24 +411,38 @@ def _recorded_copy(execution: RecordedExecution) -> Optional[str]:
     return None
 
 
-def _assign_paths(prog: _Program) -> Dict[Optional[str], str]:
+def _referenced_files(prog: _Program) -> set:
+    """Files named by call sites and launch call paths."""
+    files = {e.file for e in prog.edges.values()}
+    files.update(f.file for p in prog.launch_paths for f in p.frames)
+    return {os.path.normpath(f) for f in files if f}
+
+
+def _assign_paths(prog: _Program, other_files: Iterable[str] = ()) -> Dict[Optional[str], str]:
+    """Give each function a directory and each file a ``files/`` directory,
+    including ``other_files``, which only call sites name."""
     file_dirs: Dict[Optional[str], str] = {}
     used: set = set()
+
+    def add_file(file):
+        base = os.path.basename(file) if file else "_unknown"
+        file_dirs[file] = _unique(f"files/{_safe_name(base)}", used)
+        # The file's own entries, which a function such as source::hip
+        # would otherwise be named after.
+        used.update(f"{file_dirs[file]}/{name}" for name in ("file.json", _source_name(file)))
+
     order = sorted(prog.functions.values(), key=lambda f: (f.file or "", f.line or 0, f.name))
     lambda_lines = _lambda_lines(order)
     for fn in order:
         if fn.file not in file_dirs:
-            base = os.path.basename(fn.file) if fn.file else "_unknown"
-            file_dirs[fn.file] = _unique(f"files/{_safe_name(base)}", used)
-            # The file's own entries, which a function such as source::hip
-            # would otherwise be named after.
-            used.update(f"{file_dirs[fn.file]}/{name}"
-                        for name in ("file.json", _source_name(fn.file)))
+            add_file(fn.file)
         path = f"{file_dirs[fn.file]}/{_dir_name(fn, lambda_lines)}"
         if path in used:
             # Overloads share a short name; the symbol tells them apart.
             path = f"{file_dirs[fn.file]}/{_safe_name(fn.name)}"
         fn.path = _unique(path, used)
+    for file in sorted(set(other_files) - set(file_dirs)):
+        add_file(file)
     return file_dirs
 
 
@@ -461,10 +488,10 @@ def _display(prog: _Program, name: str) -> str:
     return fn.display_name if fn else name
 
 
-def _site(edge: _Edge, other: _Function, own_file: Optional[str]) -> dict:
+def _site(prog: _Program, edge: _Edge, other: _Function, own_file: Optional[str]) -> dict:
     site = {"function": other.display_name, "at": other.path}
-    if edge.file and edge.file != own_file:
-        site["file"] = edge.file
+    if edge.file and prog.file_ref(edge.file) != prog.file_ref(own_file):
+        site["file"] = prog.file_ref(edge.file)
     if edge.line:
         site["line"] = edge.line
     if edge.launches is not None:
@@ -555,7 +582,8 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
     data = {"kind": fn.kind, "name": fn.display_name}
     if fn.name != fn.display_name:
         data["symbol"] = fn.name
-    for key, value in (("file", fn.file), ("line", fn.line), ("end_line", fn.end_line)):
+    for key, value in (("file", prog.file_ref(fn.file)), ("line", fn.line),
+                       ("end_line", fn.end_line)):
         if value is not None:
             data[key] = value
     data.update(source_info)
@@ -567,7 +595,7 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
             data["entry_line"] = k.code.line
         if k.record:
             data["static_hash"] = str(k.record["StaticHash"])
-            data["mneme_record"] = k.record_path
+            data["mneme_record"] = prog.record_ref(k.record_path)
             data.update(_launch_totals(k.record))
 
     out_edges = [e for e in prog.edges.values() if e.caller is fn]
@@ -577,7 +605,7 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
                               ("called_by", [e for e in in_edges if e.origin != "launch"], "caller"),
                               ("launched_by", [e for e in in_edges if e.origin == "launch"], "caller")):
         if edges:
-            data[key] = [_site(e, getattr(e, other), fn.file) for e in edges]
+            data[key] = [_site(prog, e, getattr(e, other), fn.file) for e in edges]
     if fn.ir_fn:
         data["body"] = _body(prog, fn.ir_fn)
     _write_json(os.path.join(fn_dir, "function.json"), data)
@@ -596,13 +624,16 @@ def _write_function(prog: _Program, fn: _Function, source: Optional[str], source
                 "block": [inst["BlockDims"][d] for d in "xyz"],
                 "shared_mem": inst["SharedMem"],
                 "occurrences": inst["Occurrences"],
-                "prologue": os.path.join(record_dir, inst["Prologue"]),
-                "epilogue": os.path.join(record_dir, inst["Epilogue"]),
+                "prologue": prog.record_ref(os.path.join(record_dir, inst["Prologue"])),
+                "epilogue": prog.record_ref(os.path.join(record_dir, inst["Epilogue"])),
             } for dyn_hash, inst in k.record["instances"].items()])
 
 
 def _write_program(prog: _Program, out: str) -> None:
-    file_dirs = _assign_paths(prog)
+    # Source file -> its directory in the program directory, and file
+    # directory -> its copy of the file, relative to the program directory.
+    file_dirs = prog.file_dirs = _assign_paths(prog, _referenced_files(prog))
+    prog.file_sources = {}
     prog.build_views()
     sources = {key: _function_source(prog, fn) for key, fn in prog.functions.items()}
     os.makedirs(out)
@@ -625,12 +656,14 @@ def _write_program(prog: _Program, out: str) -> None:
         "shared_mem": p.shared_mem,
         "count": p.count,
         "call_path": [{"function": f.function, "at": prog.functions[("host", f.function)].path,
-                       "file": f.file, "line": f.line} for f in p.frames],
+                       "file": prog.file_ref(f.file), "line": f.line} for f in p.frames],
     } for p in prog.launch_paths])
+    recorded_at = prog.run.get("recorded_at")
     for path, file_dir in file_dirs.items():
         os.makedirs(os.path.join(out, file_dir))
-        file_info = {"path": path}
-        source = os.path.join(out, file_dir, _source_name(path))
+        file_info = {"original_path": path}
+        source_rel = f"{file_dir}/{_source_name(path)}"
+        source = os.path.join(out, source_rel)
         view = prog.file_view(path)
         if path in prog.source_copies:
             file_info["source_copied"] = "record"
@@ -642,6 +675,16 @@ def _write_program(prog: _Program, out: str) -> None:
             file_info["source_copied"] = "export"
             with open(source, "w", newline="") as f:
                 f.write("".join(view.lines))
+        elif path and os.path.isabs(path) and os.path.isfile(path):
+            # Host code, and files only call sites name, have no device view
+            # to check the file against, so it may have changed since.
+            file_info["source_copied"] = "export-unchecked"
+            if recorded_at and (datetime.datetime.fromtimestamp(os.path.getmtime(path))
+                                > datetime.datetime.fromisoformat(recorded_at)):
+                file_info["modified_after_recording"] = True
+            shutil.copyfile(path, source)
+        if "source_copied" in file_info:
+            prog.file_sources[file_dir] = source_rel
         _write_json(os.path.join(out, file_dir, "file.json"), file_info)
     for key, fn in prog.functions.items():
         _write_function(prog, fn, *sources[key], out)
@@ -662,15 +705,21 @@ def _graph(prog: _Program, nodes: list, edges: list) -> None:
     def fn_id(fn):
         return f"{prog.dir}/{fn.path}"
 
-    node(prog.dir, "program", prog.name, executable=prog.run["executable"],
-         arguments=prog.run["arguments"], gpu_arch=prog.gpu_arch, hostname=prog.run.get("hostname"))
+    def file_id(path):
+        ref = prog.file_ref(path)
+        return f"{prog.dir}/{ref}" if ref else None
+
+    node(prog.dir, "program", prog.name, arguments=prog.run["arguments"], gpu_arch=prog.gpu_arch,
+         hostname=prog.run.get("hostname"))
     functions = list(prog.functions.values())
-    for file_dir, path in sorted({(os.path.dirname(f.path), f.file or "") for f in functions}):
-        node(f"{prog.dir}/{file_dir}", "source_file", os.path.basename(file_dir), path=path or None)
+    for file_dir in sorted(prog.file_dirs.values()):
+        source = prog.file_sources.get(file_dir)
+        node(f"{prog.dir}/{file_dir}", "source_file", os.path.basename(file_dir),
+             source=f"{prog.dir}/{source}" if source else None)
         edge(prog.dir, f"{prog.dir}/{file_dir}", "contains")
 
     for fn in functions:
-        attrs = {"name": fn.name, "file": fn.file, "line": fn.line}
+        attrs = {"name": fn.name, "file": file_id(fn.file), "line": fn.line}
         if fn.end_line:
             attrs["end_line"] = fn.end_line
         if fn.kernel and fn.kernel.code.instructions:
@@ -703,7 +752,7 @@ def _graph(prog: _Program, nodes: list, edges: list) -> None:
 
     for e in prog.edges.values():
         edge(fn_id(e.caller), fn_id(e.callee), "launches" if e.origin == "launch" else "calls",
-             origin=e.origin, call_file=e.file, call_line=e.line, launches=e.launches)
+             origin=e.origin, call_file=file_id(e.file), call_line=e.line, launches=e.launches)
 
 
 def _prepare_output(out_dir: str) -> None:
