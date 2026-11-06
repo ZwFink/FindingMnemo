@@ -6,13 +6,14 @@ a directory tree that mirrors the program hierarchy, so it can be browsed with
 ``ls``, ``tree`` and ``jq``::
 
     <db>/index.json, graph.json
-    <db>/<program>/program.json, launches.json
+    <db>/<program>/program.json, launches.json, graph.json
     <db>/<program>/files/<source file>/<function>/function.json, ir.ll, ...
 
 Paths in the database are relative to it. Source files are named by their
 directory (``files/<source file>``), which holds a copy of the file; only
 ``file.json`` keeps the file's original path. Mneme records and snapshots are
-relative to the program's ``run_dir``.
+relative to the program's ``run_dir``. Each program's ``graph.json`` is its
+part of the database's, with the same node ids.
 
 HIP runtime helpers (``__ockl_*``, ``__hip_get_*``, ...) and functions from
 clang's own headers (``__clang_hip_math.h``, ...) are left out.
@@ -755,6 +756,11 @@ def _graph(prog: _Program, nodes: list, edges: list) -> None:
              origin=e.origin, call_file=file_id(e.file), call_line=e.line, launches=e.launches)
 
 
+def _write_graph(path: str, nodes: list, edges: list) -> None:
+    with open(path, "w") as f:
+        json.dump({"nodes": nodes, "edges": edges}, f, indent=1)
+
+
 def _prepare_output(out_dir: str) -> None:
     """Replace a previous database, but never a directory that is not one."""
     if not os.path.exists(out_dir):
@@ -784,11 +790,14 @@ def build(run_dirs: List[str], out_dir: str, llvm_bin: str) -> str:
         prog = _Program(os.path.abspath(run_dir), llvm_bin)
         prog.dir = _unique(_safe_name(os.path.basename(os.path.normpath(prog.run_dir))), used)
         _write_program(prog, os.path.join(out_dir, prog.dir))
-        _graph(prog, nodes, edges)
+        prog_nodes, prog_edges = [], []
+        _graph(prog, prog_nodes, prog_edges)
+        _write_graph(os.path.join(out_dir, prog.dir, "graph.json"), prog_nodes, prog_edges)
+        nodes += prog_nodes
+        edges += prog_edges
         index.append({"dir": prog.dir, "name": prog.name, "arguments": prog.run["arguments"],
                       "gpu_arch": prog.gpu_arch})
-    with open(os.path.join(out_dir, "graph.json"), "w") as f:
-        json.dump({"nodes": nodes, "edges": edges}, f, indent=1)
+    _write_graph(os.path.join(out_dir, "graph.json"), nodes, edges)
     _write_json(os.path.join(out_dir, "index.json"), {
         "format": FORMAT,
         "created_at": datetime.datetime.now().isoformat(timespec="seconds"),

@@ -132,6 +132,7 @@ xsbench-db/
 ├── xsbench-small-unionized/    one directory per recorded run
 │   ├── program.json            executable, arguments, host, GPU architecture, kernels
 │   ├── launches.json           every launch: kernel, host call path, grid, block, count
+│   ├── graph.json              this program's part of the top-level graph.json
 │   ├── files/                  application source files
 │   │   ├── Main.cpp/
 │   │   │   ├── file.json       original path, "source_copied": "export-unchecked"
@@ -299,7 +300,8 @@ graph tools. Node ids are paths in the database (`#loop:`, `#block:` and
 `#instance:` name the parts of a function), and edge kinds are `contains`,
 `calls`, `launches` and `has_instance`. A function's `file` and a call edge's
 `call_file` are the id of a `source_file` node, whose `source` is its copy of
-the file:
+the file. Each program directory also has a `graph.json` with only that
+program's nodes and edges, under the same ids:
 
 ```python
 import json, networkx as nx
