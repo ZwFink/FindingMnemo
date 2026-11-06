@@ -1043,7 +1043,10 @@ def test_export_writes_files_mneme_did_not_copy(tmp_path):
     header = str(tmp_path / "forall.h")
     (tmp_path / "mneme-copy.h").write_text("// Mneme's copy\n")
     prog.source_copies = {header: str(tmp_path / "mneme-copy.h")}
+    (tmp_path / "main.cpp").write_text("int main() {}\n")
     host = _Function("host", "main", "main", "main", str(tmp_path / "main.cpp"), 1)
+    gone = _Function("host", "init", "init", "init", str(tmp_path / "gone.cpp"), 1)
+    prog.functions[("host", "init")] = gone
     prog.functions[("host", "main")] = host
     prog.run = {"executable": "app", "arguments": []}
     prog.run_dir, prog.gpu_arch, prog.launch_paths = str(tmp_path), "gfx942", []
@@ -1055,16 +1058,24 @@ def test_export_writes_files_mneme_did_not_copy(tmp_path):
         return json.loads((files / "file.json").read_text()), files
 
     info, files = file_dir("app.hip")
-    assert info == {"path": unit.file, "source_copied": "export"}
+    assert info == {"original_path": unit.file, "source_copied": "export"}
     assert (files / "source.hip").read_bytes() == app.encode()
     lam = next(fn for fn in prog.functions.values() if fn.display_name == "operator()")
     assert (tmp_path / "db" / lam.path / "source.hip").exists()
     info, files = file_dir("forall.h")
-    assert info == {"path": header, "source_copied": "record"}
+    assert info == {"original_path": header, "source_copied": "record"}
     assert (files / "source.h").read_text() == "// Mneme's copy\n"
+    # Files with only host code are copied too, without a device view to
+    # check them against.
     info, files = file_dir("main.cpp")
-    assert info == {"path": host.file}
-    assert sorted(p.name for p in files.iterdir()) == ["file.json", "main"]
+    assert info == {"original_path": host.file, "source_copied": "export-unchecked"}
+    assert (files / "source.cpp").read_text() == "int main() {}\n"
+    info, files = file_dir("gone.cpp")
+    assert info == {"original_path": gone.file}
+    assert sorted(p.name for p in files.iterdir()) == ["file.json", "init"]
+    # Functions name their file by its directory in the database.
+    fn = json.loads((tmp_path / "db" / lam.path / "function.json").read_text())
+    assert fn["file"] == "files/app.hip"
 
 
 @needs_clang

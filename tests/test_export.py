@@ -121,6 +121,16 @@ def test_function_paths_leave_room_for_the_files_own_entries():
     assert len(set(paths)) == 3
 
 
+def test_files_named_only_by_call_sites_get_directories():
+    class Prog:
+        functions = {("host", "main"): _fn("host", "main", file="/src/app.hip", line=3),
+                     ("host", "run"): _fn("host", "run", file="/lib/app.hip", line=9)}
+    file_dirs = _assign_paths(Prog(), ["/src/util.h", "/src/app.hip"])
+    # Files of functions keep the names they get without call sites.
+    assert file_dirs == {"/lib/app.hip": "files/app.hip", "/src/app.hip": "files/app.hip~2",
+                         "/src/util.h": "files/util.h"}
+
+
 def test_recorded_copy_is_only_mnemes_copy(tmp_path):
     original, copy = tmp_path / "app.hip", tmp_path / "RecordedSource_app.hip"
     original.write_text("__global__ void k() {}\n")
