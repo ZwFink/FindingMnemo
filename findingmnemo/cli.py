@@ -16,8 +16,13 @@ DEFAULT_SHIM = os.path.join(REPO_ROOT, "lib", "libfindingmnemo_stacks.so")
 
 # Prepends the shim to whatever LD_PRELOAD `mneme record` set, then runs the
 # application. `mneme record` overwrites LD_PRELOAD, so the shim cannot be
-# passed in from outside.
-_PRELOAD_WRAPPER = 'LD_PRELOAD="$FINDINGMNEMO_SHIM${LD_PRELOAD:+:$LD_PRELOAD}" exec "$@"'
+# passed in from outside. Mneme's record library is also preloaded into this
+# shell, and with kernel timing on it sets ROCPROFILER_REGISTER_FORCE_LOAD.
+# The application must not inherit it: libraries that register HIP code from
+# a load-time constructor, such as Cray's libmpi_gtl_hsa, would then make
+# rocprofiler-sdk configure itself before Mneme can attach its timer.
+_PRELOAD_WRAPPER = ('unset ROCPROFILER_REGISTER_FORCE_LOAD; '
+                    'LD_PRELOAD="$FINDINGMNEMO_SHIM${LD_PRELOAD:+:$LD_PRELOAD}" exec "$@"')
 
 
 def _mneme_config(key: str) -> str:
