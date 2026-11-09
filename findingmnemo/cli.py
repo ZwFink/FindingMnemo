@@ -81,13 +81,7 @@ def export_cmd(args) -> int:
 
 
 def copy_cmd(args) -> int:
-    path_map = {}
-    for item in args.map:
-        old, sep, new = item.partition("=")
-        if not sep or not old or not new:
-            sys.exit(f"findingmnemo copy: --map takes OLD=NEW, not {item!r}")
-        path_map[os.path.abspath(old)] = os.path.abspath(new)
-    relocate.copy(args.db, args.dest, args.recordings, path_map)
+    relocate.copy(args.db, args.dest, args.recordings)
     print(f"database: {os.path.abspath(args.dest)}")
     return 0
 
@@ -115,14 +109,13 @@ def main(argv=None) -> int:
                           "clang-offload-bundler (default: Mneme's LLVM)")
     exp.set_defaults(func=export_cmd)
 
-    cp = sub.add_parser("copy", help="copy a database to another directory and update its paths")
+    cp = sub.add_parser("copy", help="copy a database to another directory, optionally with its "
+                                     "recordings")
     cp.add_argument("db", help="database directory to copy")
     cp.add_argument("dest", help="new database directory (must not exist)")
     cp.add_argument("--recordings", action="store_true",
                     help="also copy each program's run directory (Mneme recordings and launch "
                          "stacks) to <dest>/<program>/recording/")
-    cp.add_argument("--map", action="append", default=[], metavar="OLD=NEW",
-                    help="rewrite paths under OLD to NEW, for files moved separately (repeatable)")
     cp.set_defaults(func=copy_cmd)
 
     args = parser.parse_args(argv)

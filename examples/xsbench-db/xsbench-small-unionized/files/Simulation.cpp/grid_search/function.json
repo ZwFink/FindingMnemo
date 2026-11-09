@@ -2,7 +2,7 @@
   "kind": "device",
   "name": "grid_search(long, double, double*)",
   "symbol": "_Z11grid_searchldPd",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
+  "file": "files/Simulation.cpp",
   "line": 247,
   "end_line": 267,
   "source_arch": "gfx942",

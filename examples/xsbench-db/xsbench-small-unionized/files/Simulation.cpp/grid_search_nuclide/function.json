@@ -2,7 +2,7 @@
   "kind": "device",
   "name": "grid_search_nuclide(long, double, NuclideGridPoint*, long, long)",
   "symbol": "_Z19grid_search_nuclideldP16NuclideGridPointll",
-  "file": "/p/vast1/fink12/claude-scratch/findingmnemo/xsbench-pr1/XSBench/hip/Simulation.cpp",
+  "file": "files/Simulation.cpp",
   "line": 270,
   "end_line": 290,
   "source_arch": "gfx942",
