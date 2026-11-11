@@ -15,6 +15,8 @@ import re
 import shutil
 from typing import List, Tuple
 
+from . import dbformat
+
 # The parts of a run directory that the database refers to. A run directory
 # can also hold a database exported into it, which is not copied.
 _RUN_PARTS = ("run.json", "stacks", "record-db")
@@ -84,6 +86,10 @@ def copy(db: str, dest: str, recordings: bool = False) -> None:
     db, dest = os.path.abspath(db), os.path.abspath(dest)
     if not os.path.isfile(os.path.join(db, "index.json")):
         raise SystemExit(f"findingmnemo copy: {db} is not a database (no index.json)")
+    version = dbformat.read_version(db)
+    if version is not None and version > dbformat.VERSION:
+        raise SystemExit(f"findingmnemo copy: {db} has format version {version}, newer than "
+                         f"this FindingMnemo's {dbformat.VERSION}; update FindingMnemo")
     if os.path.exists(dest):
         raise SystemExit(f"findingmnemo copy: {dest} already exists")
     if _inside_real(dest, db):

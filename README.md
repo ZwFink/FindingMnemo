@@ -127,7 +127,7 @@ an editor or `jq` show what is in it. For the XSBench example
 
 ```
 xsbench-db/
-├── index.json                  format version and the list of programs
+├── index.json                  format version (see below) and the list of programs
 ├── graph.json                  nodes/edges graph of every program
 ├── xsbench-small-unionized/    one directory per recorded run
 │   ├── program.json            executable, arguments, host, GPU architecture, kernels
@@ -310,6 +310,29 @@ G = nx.MultiDiGraph()
 G.add_nodes_from((n["id"], n) for n in g["nodes"])
 G.add_edges_from((e["source"], e["target"], e) for e in g["edges"])
 ```
+
+### Format versions
+
+`index.json` names the format and its version, and the FindingMnemo commit
+that wrote the database (`-dirty` if it had uncommitted changes, `null` if it
+cannot be told):
+
+```json
+{"format": "findingmnemo-db", "version": 2, "findingmnemo_commit": "364e79dad69e", ...}
+```
+
+The version goes up whenever a change would make a reader of an older database
+wrong: a key, file or directory renamed, moved or removed, a value whose
+meaning or units change, or a change in how directories are named. Adding a
+key or a file does not change it, so a reader should check the version and
+otherwise ignore what it does not know. `findingmnemo export` replaces a
+database of any version, and `findingmnemo copy` refuses one newer than it
+knows.
+
+| version | change |
+| --- | --- |
+| 1 | `"format": "findingmnemo-db/1"` and no `version`: every database written before versions were kept, whatever its layout. Those exported from 0c85cdd (PR #11) on, or by that PR's branch at 35382d0, have the version 2 layout. |
+| 2 | `format` and `version` are separate keys, and `findingmnemo_commit` is new. The layout is the one described here. |
 
 ## Limitations
 

@@ -32,9 +32,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from mneme.recorded_execution import RecordedExecution
 
-from . import ir, isa, preprocess, stacks
-
-FORMAT = "findingmnemo-db/1"
+from . import dbformat, ir, isa, preprocess, stacks
 
 
 @dataclass
@@ -765,13 +763,7 @@ def _prepare_output(out_dir: str) -> None:
     """Replace a previous database, but never a directory that is not one."""
     if not os.path.exists(out_dir):
         return
-    index = os.path.join(out_dir, "index.json")
-    try:
-        with open(index) as f:
-            ours = json.load(f).get("format") == FORMAT
-    except (OSError, ValueError):
-        ours = False
-    if ours:
+    if dbformat.read_version(out_dir) is not None:
         shutil.rmtree(out_dir)
     elif os.listdir(out_dir):
         raise SystemExit(f"findingmnemo export: {out_dir} exists and is not a FindingMnemo database")
@@ -799,7 +791,9 @@ def build(run_dirs: List[str], out_dir: str, llvm_bin: str) -> str:
                       "gpu_arch": prog.gpu_arch})
     _write_graph(os.path.join(out_dir, "graph.json"), nodes, edges)
     _write_json(os.path.join(out_dir, "index.json"), {
-        "format": FORMAT,
+        "format": dbformat.FORMAT,
+        "version": dbformat.VERSION,
+        "findingmnemo_commit": dbformat.commit(),
         "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "programs": index,
     })

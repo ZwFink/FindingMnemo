@@ -1,8 +1,10 @@
 import hashlib
+import json
 
+import pytest
 from mneme.recorded_execution import RecordedExecution
 
-from findingmnemo.export import (_assign_paths, _Function, _body, _dir_name, _is_constructor,
+from findingmnemo.export import (_assign_paths, _Function, _prepare_output, _body, _dir_name, _is_constructor,
                                  _is_runtime_function, _lambda_lines, _launch_totals, _recorded_copy,
                                  _short_name)
 from findingmnemo.ir import BasicBlock, Function, Loop
@@ -159,3 +161,21 @@ def test_launch_totals_come_from_the_mneme_record():
     # Recorded without MNEME_KERNEL_TIMING, or by a Mneme that did not count launches.
     assert _launch_totals({"TotalLaunches": 7}) == {"launch_count": 7}
     assert _launch_totals({}) == {}
+
+
+@pytest.mark.parametrize("index", [{"format": "findingmnemo-db/1"},
+                                   {"format": "findingmnemo-db", "version": 2},
+                                   {"format": "findingmnemo-db", "version": 99}])
+def test_export_replaces_a_database_of_any_version(tmp_path, index):
+    db = tmp_path / "db"
+    db.mkdir()
+    (db / "index.json").write_text(json.dumps(index))
+    _prepare_output(str(db))
+    assert not db.exists()
+
+
+def test_export_keeps_a_directory_that_is_not_a_database(tmp_path):
+    (tmp_path / "index.json").write_text(json.dumps({"format": "other"}))
+    with pytest.raises(SystemExit, match="not a FindingMnemo database"):
+        _prepare_output(str(tmp_path))
+    assert (tmp_path / "index.json").exists()

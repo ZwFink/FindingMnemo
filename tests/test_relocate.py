@@ -143,3 +143,12 @@ def test_failed_copy_leaves_nothing(tmp_path, monkeypatch):
     with pytest.raises(OSError):
         copy(str(db), str(dest), recordings=True)
     assert not dest.exists()
+
+
+def test_copy_refuses_a_newer_format(tmp_path):
+    _, db = _make(tmp_path)
+    _write(str(db / "index.json"), {"format": "findingmnemo-db", "version": 99,
+                                    "programs": [{"dir": "app"}]})
+    with pytest.raises(SystemExit, match="format version 99"):
+        copy(str(db), str(tmp_path / "copy"))
+    assert not (tmp_path / "copy").exists()
